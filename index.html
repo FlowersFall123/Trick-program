@@ -131,7 +131,7 @@ let keys = {};
 let bullets = [];
 let rocks = [];
 let gravity = 0.4;
-ground = window.innerHeight - 80;
+let ground = window.innerHeight - 80;
 
 /* 创建玩家元素 */
 players.forEach((p, i) => {
@@ -195,7 +195,7 @@ function createPlatform(x, y, width) {
     platforms.push(plat);
 }
 
-let ground = window.innerHeight - 80;
+ground = window.innerHeight - 80;
 // 一些示例平台
 createPlatform(300, ground - 150, 160);
 createPlatform(700, ground - 250, 120);
