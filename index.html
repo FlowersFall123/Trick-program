@@ -1,88 +1,65 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8">
-<title>系统入侵控制台</title>
+<meta charset="UTF-8" />
+<title>Quantum Terminal</title>
 <style>
-    body {
+    /* 全局样式 */
+    html, body {
         margin: 0;
-        overflow: hidden;
         background: black;
-        color: #0f0;
+        overflow: hidden;
         font-family: Consolas, monospace;
+        color: #0f0;
     }
 
-    /* 代码雨 canvas */
-    #matrixCanvas {
+    /* 代码雨背景层 */
+    canvas#matrix {
         position: fixed;
         top: 0;
         left: 0;
         width: 100vw;
         height: 100vh;
         z-index: 1;
-        pointer-events: none;
+        opacity: 0.25;
     }
 
-    /* 主终端输出 */
-    #screen {
+    /* 终端主界面 */
+    #terminal {
         position: absolute;
-        top: 20px;
-        left: 20px;
-        z-index: 3;
+        top: 5%;
+        left: 5%;
+        width: 90%;
+        height: 90%;
+        background: rgba(0, 0, 0, 0.55);
+        border: 2px solid #0f0;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 0 20px #0f0;
+        z-index: 2;
+        overflow-y: auto;
         white-space: pre-wrap;
-        font-size: 16px;
-        line-height: 1.4;
+        font-size: 18px;
+        backdrop-filter: blur(4px);
     }
 
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #0f0; }
+
+    /* 光标 */
     .cursor {
         display: inline-block;
         width: 10px;
+        height: 20px;
         background: #0f0;
-        animation: blink .7s infinite;
+        animation: blink .5s infinite;
     }
     @keyframes blink {
-        0%, 50% { background:#0f0; }
-        51%, 100% { background: transparent; }
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
     }
 
-    /* 红色警告闪烁 */
-    .alertFlash {
-        animation: alert 0.15s infinite;
-    }
-    @keyframes alert {
-        0% { background: rgba(255,0,0,0.3); }
-        100% { background: transparent; }
-    }
-
-    /* 屏幕震动 */
-    @keyframes shake {
-        0% { transform: translate(0,0); }
-        25% { transform: translate(5px,-5px); }
-        50% { transform: translate(-5px,5px); }
-        75% { transform: translate(5px,5px); }
-        100% { transform: translate(0,0); }
-    }
-    .shake {
-        animation: shake 0.1s 6;
-    }
-
-    /* 蓝屏 */
-    #bluescreen {
-        position: fixed;
-        top:0;
-        left:0;
-        width:100%;
-        height:100%;
-        background:#001aff;
-        color:#fff;
-        z-index: 999;
-        font-size:28px;
-        padding:50px;
-        display:none;
-        font-family: Consolas, monospace;
-    }
-
-    /* 点击弹窗 */
+    /* 被捉弄弹窗 */
     #prankPopup {
         position: fixed;
         top: 50%;
@@ -90,170 +67,196 @@
         transform: translate(-50%, -50%);
         background: rgba(0,0,0,0.85);
         color: #0f0;
-        padding: 30px 40px;
-        font-size: 24px;
-        border: 2px solid #0f0;
-        z-index: 99999;
+        padding: 40px 60px;
+        font-size: 28px;
+        border: 3px solid #0f0;
+        z-index: 9999;
         display: none;
+        border-radius: 14px;
         text-align: center;
-        border-radius: 10px;
+        box-shadow: 0 0 25px #0f0;
+        animation: popupFade 0.6s ease-out;
+    }
+    @keyframes popupFade {
+        from { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    /* 蓝屏恶搞 */
+    #blueScreen {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #0000aa;
+        color: #fff;
+        font-size: 32px;
+        padding: 80px;
+        display: none;
+        z-index: 99999;
+        font-family: Consolas;
     }
 </style>
 </head>
+
 <body>
 
-<canvas id="matrixCanvas"></canvas>
-<div id="screen"></div>
+<canvas id="matrix"></canvas>
+
+<div id="terminal"></div>
 <div class="cursor"></div>
 
-<!-- 被捉弄提示 -->
-<div id="prankPopup">
-    😂 你被朋友恶搞了！  
-    <br><br>
-    点击任意位置继续观看效果~
-</div>
+<div id="prankPopup">😂 你被朋友恶搞了！</div>
 
-<!-- 蓝屏 -->
-<div id="bluescreen">
-😵 Windows 遇到问题，需要重新启动  
-<br><br>
-错误码：FAKE_HACK_0x0001337  
-<br><br><br>
-系统分析中…  
-<br><br>
-检测到：你被朋友恶搞了 😆  
+<div id="blueScreen">
+    <b>:(  Your device ran into a fake problem.</b><br><br>
+    This is a prank blue screen<br>
+    Just refresh the page to reboot.<br><br>
+    *** STOP: 0x00000000 (0xERROR_FAKE, 0xPRANK_MODE)
 </div>
 
 <script>
-// -------------------------------
-// 1. 《黑客帝国》代码雨
-// -------------------------------
-const canvas = document.getElementById("matrixCanvas");
+/* ==========================
+      MATRIX 代码雨背景
+========================== */
+const canvas = document.getElementById("matrix");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
 
-const letters = "01";
-const fontSize = 16;
-const columns = canvas.width / fontSize;
-
-let drops = [];
-for (let i = 0; i < columns; i++) drops[i] = 1;
+const characters = "01{}[]=<>/\\*&^%$#@!"; 
+const drops = Array(Math.ceil(canvas.width / 20)).fill(0);
 
 function drawMatrix() {
-    ctx.fillStyle = "rgba(0,0,0,0.05)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = "#0f0";
-    ctx.font = fontSize + "px Consolas";
+    ctx.font = "20px Consolas";
 
-    for (let i = 0; i < drops.length; i++) {
-        let text = letters.charAt(Math.floor(Math.random() * letters.length));
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.95)
-            drops[i] = 0;
-
-        drops[i]++;
-    }
+    drops.forEach((y, x) => {
+        const text = characters[Math.floor(Math.random() * characters.length)];
+        ctx.fillText(text, x * 20, y * 20);
+        drops[x] = y * 20 > canvas.height && Math.random() > 0.95 ? 0 : y + 1;
+    });
 }
 setInterval(drawMatrix, 50);
 
 
-// -------------------------------
-// 2. 黑客终端内容
-// -------------------------------
-const lines = [
-    "[启动] 初始化控制台...",
-    "[加载] 模拟系统模块...",
-    "[成功] 安全协议已绕过。",
-    "[执行] 正在扫描网络设备...",
-    "发现设备：192.168.1.12",
-    "发现设备：192.168.1.33",
-    "[检测] WiFi：正在嗅探隐藏网络...",
-    "[分析] CPU 负载：98%（严重）",
-    "[提示] 正在重写路由表...",
-    "",
-    "[摄像头] 正在启动摄像头模块…（假的）",
-    "[摄像头] 捕获画面中…（假的）",
-    "[摄像头] 完成。",
-    "",
-    ">>> 正在执行主入侵流程...",
-    "解密中 █▋ 32%",
-    "解密中 ████▋ 68%",
-    "解密中 ██████████ 100%",
-    "",
-    "[成功] 已取得系统控制权限。",
-    "[警告] 检测到防御程序反击！",
-    "",
-    "!!! 屏幕震动模式启动 !!!",
-    "",
-    "[隐藏] 正在抹除痕迹...",
-    "[完成] 所有记录已销毁。",
-    "",
-    ">>> 即将进入系统蓝屏保护模式...",
+/* ==========================
+       高级黑客日志数组
+========================== */
+const logs = [
+"> 正在初始化安全模块……",
+"> 建立量子加密通道…… OK",
+"> 载入代理节点：44 个",
+"> 节点延迟均衡……完成",
+"> 连接深度网络主机……成功",
+"> 正在部署内存溢出攻击向量……",
+"> 执行远程注入…… 96%",
+"> 正在读取系统结构……",
+"> 触发系统监控警告！",
+"> 护盾反击开始：准备震动",
+"> === 屏幕震动启动 ===",
+"> 擦除访问记录……成功",
+"> 系统即将保护性蓝屏……",
+"",
+"> 加载量子防火墙接口……成功",
+"> Q-Node 引擎加载……完成",
+"> 分布式引导程序加载……正常",
+"> 建立全局内存加速通道……成功",
+"> GPU 神经调度单元已激活",
+"> 4096-bit 密钥生成完成",
+"> 深度网络多节点侦查中…… 12%……67%……100%",
+"> 伪装流量部署成功",
+"> 正在绕过行为检测系统……",
+"> 伪造系统指纹……完成",
+"> 目标服务器响应延迟：8ms",
+"> 深层结构解密中……",
+"> 正在抓取隐藏目录 ……",
+"> 找到加密文件：core.vault",
+"> 正在强制解锁密钥……",
+"> 解锁成功！",
+"",
+"> 载入拓扑图……完成",
+"> 正在分析权限链路……",
+"> 管理员通道：弱口令发现",
+"> 正在尝试暴力破解……",
+"> 破解成功：密码为 『guest123』",
+"> 注入管理员令牌……完成",
+"> 获取系统根权限……成功",
+"",
+"> 触发安全子系统反馈",
+"> 反入侵模块尝试屏蔽操作",
+"> 处理冲突……忽略",
+"> 重写系统日志……完成",
+"> 深度操作执行中……",
+"",
+"> 任务完成：已完全控制目标系统。",
+"> === 你被朋友恶搞了 😆 ==="
 ];
 
-let i = 0;
-function printLine() {
-    if (i < lines.length) {
-        document.getElementById("screen").textContent += lines[i++] + "\n";
 
-        // 红色闪烁
-        if (lines[i-1].includes("警告")) {
-            document.body.classList.add("alertFlash");
-            setTimeout(() => document.body.classList.remove("alertFlash"), 1500);
+/* ==========================
+        终端打印功能
+========================== */
+let index = 0;
+function printLog() {
+    const terminal = document.getElementById("terminal");
+    if (index < logs.length) {
+        terminal.textContent += logs[index] + "\n";
+        terminal.scrollTop = terminal.scrollHeight;
+
+        // 触发震动
+        if (logs[index].includes("震动")) {
+            screenShake();
         }
 
-        // 屏幕震动
-        if (lines[i-1].includes("震动")) {
-            document.body.classList.add("shake");
-            setTimeout(() => document.body.classList.remove("shake"), 600);
+        // 触发蓝屏
+        if (logs[index].includes("蓝屏")) {
+            setTimeout(showBlueScreen, 3000);
         }
 
-        setTimeout(printLine, 150 + Math.random() * 300);
-    } else {
-        // 显示蓝屏
-        setTimeout(() => {
-            document.getElementById("bluescreen").style.display = "block";
-        }, 2000);
+        index++;
+        setTimeout(printLog, 150 + Math.random() * 200);
     }
 }
-printLine();
+printLog();
 
 
-// -------------------------------
-// 3. 随机字符爆炸
-// -------------------------------
-function charExplosion() {
-    const explosion = document.createElement("div");
-    explosion.style.position = "fixed";
-    explosion.style.top = Math.random()*80 + "%";
-    explosion.style.left = Math.random()*80 + "%";
-    explosion.style.color = "#0f0";
-    explosion.style.fontSize = "30px";
-    explosion.style.zIndex = 50;
-    explosion.innerText = "█▓▒░█▓▒░█▓▒░";
-    document.body.appendChild(explosion);
-
-    setTimeout(()=> explosion.remove(), 300);
+/* ==========================
+         屏幕震动
+========================== */
+function screenShake() {
+    const body = document.body;
+    let i = 0;
+    const shake = setInterval(() => {
+        body.style.transform = `translate(${(Math.random() - 0.5) * 10}px, ${(Math.random() - 0.5) * 10}px)`;
+        if (i++ > 15) {
+            clearInterval(shake);
+            body.style.transform = "translate(0,0)";
+        }
+    }, 50);
 }
-setInterval(charExplosion, 1200);
 
 
-// -------------------------------
-// 4. 点击出现“你被捉弄了”
-// -------------------------------
+/* ==========================
+         假蓝屏
+========================== */
+function showBlueScreen() {
+    document.getElementById("blueScreen").style.display = "block";
+}
+
+
+/* ==========================
+       点击显示捉弄提示
+========================== */
 document.addEventListener("click", () => {
-    const popup = document.getElementById("prankPopup");
-    popup.style.display = "block";
-
-    setTimeout(() => {
-        popup.style.transition = "0.8s";
-        popup.style.opacity = "0";
-        setTimeout(()=> popup.remove(), 800);
-    }, 3000);
+    const pop = document.getElementById("prankPopup");
+    pop.style.display = "block";
+    setTimeout(() => { pop.style.opacity = 0; }, 2500);
+    setTimeout(() => { pop.remove(); }, 3500);
 }, { once: true });
 
 </script>
