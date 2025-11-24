@@ -1,514 +1,245 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>被入侵 · 生存挑战）</title>
+<meta charset="UTF-8">
+<title>系统入侵 • 生存测试</title>
 <style>
-  :root{
-    --bg:#0b1014;
-    --accent:#00d1a6;
-    --cute:#ffd57e;
-    --slime:#7ce27c;
-    --rock:#c6b89a;
-  }
-  html,body{
-    height:100%; margin:0; background:var(--bg); font-family: "Segoe UI", Roboto, "Microsoft Yahei", sans-serif; color:#d7fff0; overflow:hidden;
-  }
+    body {
+        margin: 0;
+        background: black;
+        font-family: Consolas, monospace;
+        overflow: hidden;
+        color: #0f0;
+    }
 
-  /* ---------- intro overlay ---------- */
-  #intro {
-    position:fixed; inset:0; z-index:40;
-    display:flex; align-items:center; justify-content:center; flex-direction:column;
-    background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.85));
-    gap:16px; text-align:center; padding:20px;
-  }
-  .warning { color:var(--accent); font-weight:800; font-size:18px; text-shadow:0 0 8px rgba(0,209,166,0.15); }
-  .hacked { color:#ff6b6b; font-size:28px; font-weight:800; -webkit-text-stroke:0.4px rgba(0,0,0,.4); animation:flash 1s linear infinite;}
-  @keyframes flash{0%{opacity:1}50%{opacity:.25}100%{opacity:1}}
-  #startBtn { background:linear-gradient(90deg,#ffd57e,#ff9f9f); border:none; padding:10px 18px; border-radius:999px; cursor:pointer; font-weight:800; color:#222; box-shadow:0 10px 26px rgba(0,0,0,.45); }
+    /* 入侵界面 */
+    #hackerScreen {
+        position: fixed;
+        inset: 0;
+        background: black;
+        padding: 40px;
+        color: #0f0;
+        font-size: 20px;
+        line-height: 1.6;
+        text-shadow: 0 0 6px #0f0;
+        z-index: 1000;
+    }
 
-  /* ------- small HUD & hints ------- */
-  #controlHint { position:fixed; left:12px; top:12px; z-index:45; background:rgba(255,255,255,0.03); padding:8px 10px; border-radius:8px; font-size:13px; color:#e8fff6; border:1px solid rgba(255,255,255,0.03); }
-  #hud { position:fixed; right:12px; top:12px; z-index:45; background:rgba(255,255,255,0.03); padding:8px 10px; border-radius:8px; font-size:13px; color:#fff; border:1px solid rgba(255,255,255,0.03); }
+    #startBtn {
+        margin-top: 40px;
+        padding: 12px 30px;
+        font-size: 22px;
+        color: #000;
+        background: #0f0;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 0 10px #0f0;
+    }
 
-  /* -------- game SVG container ------- */
-  #gameRoot { position:fixed; inset:0; z-index:20; background:linear-gradient(#09121a,#061018); }
+    /* 游戏区域 */
+    #gameArea {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: #111;
+        overflow: hidden;
+    }
 
-  /* -------- character CSS animations (SVG children) ------- */
-  .player-run { animation: run-bob 0.45s steps(1) infinite; }
-  @keyframes run-bob { 0%{transform: translateY(0)} 50%{transform: translateY(-3px)} 100%{transform: translateY(0)} }
+    /* 火柴人 */
+    #player {
+        position: absolute;
+        width: 50px;
+        height: 100px;
+    }
 
-  .slime-wobble { animation: wobble 0.9s ease-in-out infinite; transform-origin: center; }
-  @keyframes wobble { 0%{transform: translateY(0) scale(1)} 50%{transform: translateY(-6px) scale(0.98,1.02)} 100%{transform: translateY(0) scale(1)} }
+    /* 火柴人绘制（SVG） */
+    #player svg {
+        width: 100%;
+        height: 100%;
+    }
 
-  /* stone rotate */
-  .stone-rot { animation: spin 1.2s linear infinite; transform-origin: center; }
-  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+    /* 史莱姆 */
+    #slime {
+        position: absolute;
+        width: 90px;
+        height: 70px;
+        animation: bounce 1s infinite alternate ease-in-out;
+    }
 
-  /* real BSOD */
-  #bluescreen {
-    position:fixed; inset:0; z-index:60; display:none;
-    background:#0a36ff; color:white; font-family: Consolas, "Segoe UI", monospace; padding:60px;
-  }
-  #bluescreen .sad{font-size:86px; line-height:0.8}
-  #bluescreen .headline{font-size:20px; margin-top:8px}
-  #bluescreen .details{margin-top:16px; font-size:16px; opacity:.95; line-height:1.6}
-  #progress{ margin-top:22px; width:64%; height:14px; background:rgba(255,255,255,0.12); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.06);}
-  #progress .bar{ height:100%; width:0%; background:rgba(255,255,255,0.96); transition:width .18s linear;}
-  #bsodBtn{ margin-top:20px; padding:10px 12px; border-radius:8px; border:none; background:white; color:#0b1220; cursor:pointer; font-weight:700 }
+    @keyframes bounce {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(-15px); }
+    }
 
-  /* tiny footer */
-  #footer { position:fixed; left:50%; transform:translateX(-50%); bottom:8px; color:rgba(255,255,255,.08); font-size:12px; z-index:15; }
+    /* 石头 */
+    .rock {
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        animation: fall 2.2s linear forwards;
+    }
+
+    @keyframes fall {
+        from { transform: translateY(-60px) rotate(0deg); }
+        to { transform: translateY(1200px) rotate(360deg); }
+    }
+
+    /* 蓝屏 */
+    #bluescreen {
+        position: fixed;
+        inset: 0;
+        background: #0078D7;
+        color: white;
+        font-family: "Segoe UI", sans-serif;
+        padding: 60px;
+        font-size: 22px;
+        display: none;
+        z-index: 9999;
+    }
 </style>
 </head>
 <body>
 
-<!-- INTRO overlay (code rain drawn separately) -->
-<div id="intro">
-  <div class="warning">警告：检测到未授权访问</div>
-  <div class="hacked">YOUR MACHINE IS COMPROMISED</div>
-  <div style="max-width:720px; color:#c6fff0; line-height:1.4;">
-    系统触发生存验证。请在被捕捉或被落石砸中前尽可能生存。<br/>
-    控制：W A S D 或 ↑ ← ↓
-  </div>
-  <div style="display:flex; gap:10px; margin-top:6px;">
-    <div style="padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.03)">移动：W A S D / 方向键</div>
-    <div style="padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.03)">目标：尽可能长时间生存</div>
-  </div>
-  <button id="startBtn">开始生存挑战</button>
+<!-- 入侵界面 -->
+<div id="hackerScreen">
+    <div>[警告] 未授权访问检测到...</div>
+    <div>[拦截] 系统控制权正在被夺取...</div>
+    <div>[提示] 若想维持电脑正常运行，你必须完成生存测试。</div>
+    <div>[说明] 使用 W A S D 控制你的火柴人移动。</div>
+    <div>[目标] 躲避史莱姆追击与掉落的石头。</div>
+
+    <button id="startBtn">开始生存测试</button>
 </div>
 
-<div id="controlHint">控制：W A S D 或方向键</div>
-<div id="hud">生存：<span id="time">0.0</span>s</div>
-<div id="footer">注：这是模拟的“假蓝屏”，仅作恶搞用途。</div>
+<!-- 游戏区域 -->
+<div id="gameArea">
+    <!-- 火柴人 SVG -->
+    <div id="player">
+        <svg viewBox="0 0 80 160">
+            <!-- 头 -->
+            <circle cx="40" cy="30" r="25" stroke="#fff" stroke-width="6" fill="none"/>
+            <!-- 身体 -->
+            <line x1="40" y1="55" x2="40" y2="100" stroke="#fff" stroke-width="6" />
+            <!-- 手 -->
+            <line x1="40" y1="70" x2="10" y2="90" stroke="#fff" stroke-width="6" />
+            <line x1="40" y1="70" x2="70" y2="90" stroke="#fff" stroke-width="6" />
+            <!-- 腿 -->
+            <line x1="40" y1="100" x2="15" y2="140" stroke="#fff" stroke-width="6" />
+            <line x1="40" y1="100" x2="65" y2="140" stroke="#fff" stroke-width="6" />
+        </svg>
+    </div>
 
-<!-- GAME: SVG as main rendering surface -->
-<svg id="gameRoot" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice">
-  <!-- Background shapes for soft ground -->
-  <defs>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.5"/>
-    </filter>
-  </defs>
+    <!-- 可爱史莱姆 SVG -->
+    <div id="slime">
+        <svg viewBox="0 0 200 150">
+            <ellipse cx="100" cy="100" rx="90" ry="45" fill="#00ff99" opacity="0.9"/>
+            <circle cx="70" cy="80" r="15" fill="#000"/>
+            <circle cx="130" cy="80" r="15" fill="#000"/>
+        </svg>
+    </div>
+</div>
 
-  <rect id="bgRect" x="0" y="0" width="1280" height="720" fill="url(#bgGrad)"></rect>
-
-  <!-- ground band -->
-  <rect x="0" y="580" width="1280" height="140" fill="#061018"></rect>
-
-  <!-- Stones group -->
-  <g id="stones"></g>
-
-  <!-- Slime (enemy) -->
-  <g id="slime" transform="translate(200,200)" class="slime-wobble">
-    <!-- body -->
-    <path d="M -36 0 Q -36 -40 0 -48 Q 36 -40 36 0 Q 36 28 0 44 Q -22 34 -36 0 Z" fill="#7ce27c" stroke="#4fbf4a" stroke-width="1"/>
-    <!-- gloss -->
-    <ellipse cx="-12" cy="-28" rx="16" ry="8" fill="rgba(255,255,255,0.2)"/>
-    <!-- eyes -->
-    <circle cx="-10" cy="-12" r="5" fill="#111"/>
-    <circle cx="8" cy="-12" r="5" fill="#111"/>
-    <circle cx="-9.2" cy="-13.2" r="1.1" fill="#fff"/>
-    <circle cx="8.8" cy="-13.2" r="1.1" fill="#fff"/>
-    <!-- smile -->
-    <path d="M -6 2 Q 0 8 6 2" stroke="#123012" stroke-width="1.6" fill="none"/>
-  </g>
-
-  <!-- Player (large head cute) -->
-  <g id="player" transform="translate(640,420)" class="player-run">
-    <!-- head -->
-    <circle cx="0" cy="0" r="28" fill="#ffd57e" stroke="#e4b86f" stroke-width="1.4" />
-    <!-- blush -->
-    <circle cx="-10" cy="8" r="5" fill="rgba(255,120,120,0.18)"/>
-    <circle cx="10" cy="8" r="5" fill="rgba(255,120,120,0.18)"/>
-    <!-- eyes -->
-    <circle cx="-8" cy="-6" r="3.4" fill="#111"/>
-    <circle cx="8" cy="-6" r="3.4" fill="#111"/>
-    <circle cx="-7.4" cy="-7.0" r="0.9" fill="#fff"/>
-    <circle cx="8.6" cy="-7.0" r="0.9" fill="#fff"/>
-    <!-- mouth -->
-    <path d="M -6 6 Q 0 11 6 6" stroke="#2b2b2b" stroke-width="1.6" fill="none"/>
-    <!-- arms (group for simple animation) -->
-    <g id="arms" transform="translate(0,8)">
-      <path d="M -16 0 Q -12 8 -6 10" stroke="#e7b26b" stroke-width="4" stroke-linecap="round" fill="none"/>
-      <path d="M 16 0 Q 12 8 6 10" stroke="#e7b26b" stroke-width="4" stroke-linecap="round" fill="none"/>
-    </g>
-    <!-- legs -->
-    <g id="legs" transform="translate(0,18)">
-      <path d="M -8 0 Q -6 8 -2 12" stroke="#e7b26b" stroke-width="4" stroke-linecap="round" fill="none"/>
-      <path d="M 8 0 Q 6 8 2 12" stroke="#e7b26b" stroke-width="4" stroke-linecap="round" fill="none"/>
-    </g>
-  </g>
-
-  <!-- Invisible big rect to capture SVG size (we will scale viewBox) -->
-  <rect x="0" y="0" width="1280" height="720" fill="transparent" />
-</svg>
-
-<!-- Realistic Windows 10/11 style BSOD -->
+<!-- 蓝屏 -->
 <div id="bluescreen">
-  <div class="sad">:(</div>
-  <div class="headline">你的电脑遇到问题，需要重新启动。</div>
-  <div class="details">
-    我们只收集某些错误信息，然后我们将为你重新启动。<br>
-    错误代码：SYSTEM_HACKED_FATAL_ERROR
-  </div>
-  <div id="progress"><div class="bar" id="bar"></div></div>
-  <button id="bsodBtn">我被捉弄了（返回重试）</button>
+    <div style="font-size:80px">:(</div>
+    <div style="margin-top:20px">你的设备遇到问题，需要重新启动。</div>
+    <div style="margin-top:10px">我们只收集一些错误信息，然后你可以重新启动。</div>
+    <div style="margin-top:40px;font-size:20px;">错误代码：SLIME_CHASE_FATAL_ERROR</div>
 </div>
 
 <script>
-/* =========================
-   SVG 游戏（A: SVG + CSS 动画 方案）
-   ========================= */
+/* ============================= */
+/* ====== 游戏开始事件 ========= */
+/* ============================= */
+document.getElementById("startBtn").onclick = () => {
+    document.getElementById("hackerScreen").style.display = "none";
+    document.getElementById("gameArea").style.display = "block";
+    startGame();
+};
 
-/* Setup: adapt SVG coordinate to screen size */
-const svgRoot = document.getElementById('gameRoot');
-function fitSVG() {
-  // keep an internal logical size 1280x720 mapped to screen
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  // we use 'slice' preserveAspect to fill, but for simplicity, set viewBox scale by CSS size
-  svgRoot.setAttribute('width', vw);
-  svgRoot.setAttribute('height', vh);
-}
-window.addEventListener('resize', fitSVG);
-fitSVG();
+/* 位置与状态 */
+let px = 300, py = 300; 
+let slimeX = 50, slimeY = 50;
+const speed = 5;
 
-/* DOM references */
-const intro = document.getElementById('intro');
-const startBtn = document.getElementById('startBtn');
-const controlHint = document.getElementById('controlHint');
-const hudTime = document.getElementById('time');
-const bsod = document.getElementById('bluescreen');
-const barElem = document.getElementById('bar');
-const bsodBtn = document.getElementById('bsodBtn');
+/* 控制 */
+const keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
 
-const playerEl = document.getElementById('player');
-const slimeEl = document.getElementById('slime');
-const stonesGroup = document.getElementById('stones');
-
-let state = 'intro'; // intro | running | dead
-let keys = {};
-let startTime = 0;
-let survival = 0;
-let lastTime = performance.now();
-let spawnTimer = 0;
-let stones = []; // {el, x, y, r, vy}
-
-/* Logical positions in SVG coordinate space (we map to screen pixels) */
-let player = { x: 640, y: 420, r: 28, speed: 4.4, anim: 0 };
-let slime = { x: 200, y: 200, r: 26, speed: 1.6, wobble: 0 };
-
-/* Input handling */
-window.addEventListener('keydown', e => {
-  keys[e.key] = true;
-  if (state === 'intro' && (e.key === 'Enter' || e.key === ' ')) startBtn.click();
-});
-window.addEventListener('keyup', e => keys[e.key] = false);
-
-// prevent arrow keys scrolling
-window.addEventListener('keydown', function(e) {
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
-});
-
-/* Start button logic */
-startBtn.addEventListener('click', () => {
-  intro.style.display = 'none';
-  startGame();
-});
-
-/* BSOD restart */
-bsodBtn.addEventListener('click', () => {
-  // hide BSOD and reset to intro
-  bsod.style.display = 'none';
-  intro.style.display = 'flex';
-  barElem.style.width = '0%';
-  clearInterval(progressInterval);
-});
-
-/* Helper: create SVG stone element */
-function createStoneSVG(r) {
-  const ns = "http://www.w3.org/2000/svg";
-  const g = document.createElementNS(ns, 'g');
-  g.setAttribute('class', 'stone-rot');
-  const path = document.createElementNS(ns, 'path');
-  // simple rounded rock path relative to 0,0 scaled by r
-  const d = `M ${-r} 0 Q ${-r} ${-r*0.6} 0 ${-r} Q ${r} ${-r*0.4} ${r} 0 Q ${r*0.4} ${r*0.8} 0 ${r*0.9} Q ${-r*0.4} ${r*0.8} ${-r} 0 Z`;
-  path.setAttribute('d', d);
-  path.setAttribute('fill', getComputedStyle(document.documentElement).getPropertyValue('--rock') || '#c6b89a');
-  path.setAttribute('stroke', '#a89373');
-  path.setAttribute('stroke-width', Math.max(0.8, r*0.035));
-  g.appendChild(path);
-
-  // face: two eyes and small smile
-  const eyeL = document.createElementNS(ns,'circle'); eyeL.setAttribute('cx', -Math.min(6,r*0.4)); eyeL.setAttribute('cy', -r*0.12); eyeL.setAttribute('r', Math.max(1.2,r*0.08)); eyeL.setAttribute('fill','#2b2b2b');
-  const eyeR = document.createElementNS(ns,'circle'); eyeR.setAttribute('cx', Math.min(6,r*0.4)); eyeR.setAttribute('cy', -r*0.12); eyeR.setAttribute('r', Math.max(1.2,r*0.08)); eyeR.setAttribute('fill','#2b2b2b');
-  const mouth = document.createElementNS(ns,'path'); mouth.setAttribute('d', `M ${-Math.min(4,r*0.28)} ${r*0.25} Q 0 ${r*0.4} ${Math.min(4,r*0.28)} ${r*0.25}`); mouth.setAttribute('stroke','#2b2b2b'); mouth.setAttribute('stroke-width', Math.max(0.8,r*0.05)); mouth.setAttribute('fill','none');
-  g.appendChild(eyeL); g.appendChild(eyeR); g.appendChild(mouth);
-
-  return g;
-}
-
-/* Spawn stone object */
-function spawnStone() {
-  const vw = window.innerWidth;
-  const r = 12 + Math.random() * 14;
-  const x = Math.random() * (vw * 0.9) + vw*0.05;
-  const y = -60;
-  const vy = 3 + Math.random()*2.6;
-  const el = createStoneSVG(r);
-  stonesGroup.appendChild(el);
-  stones.push({ el, x, y, r, vy, rot: Math.random()*360 });
-}
-
-/* Collision helper (circle) */
-function collides(aX,aY,aR, bX,bY,bR){
-  const dx = aX - bX, dy = aY - bY;
-  return (dx*dx + dy*dy) < (aR + bR) * (aR + bR);
-}
-
-/* Start game */
+/* 游戏主循环 */
 function startGame() {
-  state = 'running';
-  startTime = performance.now();
-  survival = 0;
-  lastTime = performance.now();
-  spawnTimer = 0;
-  stones.forEach(s => s.el.remove());
-  stones = [];
-  // reset positions
-  player.x = window.innerWidth*0.5; player.y = window.innerHeight*0.6;
-  slime.x = window.innerWidth*0.2; slime.y = window.innerHeight*0.2;
-  // kick off loop
-  requestAnimationFrame(loop);
+    setInterval(gameLoop, 20);
+    setInterval(dropRock, 1200);
 }
 
-/* Death -> BSOD */
-let progressInterval = null;
-function onDeath(reason) {
-  if (state === 'dead') return;
-  state = 'dead';
-  // flash screen
-  const flash = document.createElement('div');
-  flash.style.position = 'fixed'; flash.style.inset = '0'; flash.style.background = 'rgba(255,255,255,0.12)'; flash.style.zIndex = 55;
-  document.body.appendChild(flash);
-  setTimeout(()=> document.body.removeChild(flash), 150);
+/* 石头掉落 */
+function dropRock() {
+    const rock = document.createElement("img");
+    rock.src = "https://img.icons8.com/emoji/48/rock-emoji.png";
+    rock.className = "rock";
+    rock.style.left = Math.random() * (window.innerWidth - 50) + "px";
+    document.getElementById("gameArea").appendChild(rock);
 
-  // show BSOD
-  bsod.style.display = 'block';
-  // animate progress bar
-  let pct = 0;
-  barElem.style.width = '0%';
-  clearInterval(progressInterval);
-  progressInterval = setInterval(()=>{
-    pct += Math.random()*6;
-    if (pct >= 100) pct = 100;
-    barElem.style.width = pct + '%';
-    if (pct >= 100) clearInterval(progressInterval);
-  }, 250);
+    setTimeout(() => rock.remove(), 2500);
 }
 
-/* Game loop (frame-based) */
-function loop(now) {
-  if (state !== 'running') return;
-  const dt = now - lastTime; lastTime = now;
-  // update
-  update(dt);
-  // render transforms
-  render();
-  requestAnimationFrame(loop);
+/* ====== 碰撞检测 ====== */
+function hit(a, ax, ay, b, bx, by) {
+    return Math.abs(ax - bx) < 50 && Math.abs(ay - by) < 50;
 }
 
-/* Update logic */
-function update(dt) {
-  // player input
-  let vx = 0, vy = 0;
-  if (keys['w'] || keys['ArrowUp']) vy -= 1;
-  if (keys['s'] || keys['ArrowDown']) vy += 1;
-  if (keys['a'] || keys['ArrowLeft']) vx -= 1;
-  if (keys['d'] || keys['ArrowRight']) vx += 1;
+/* ====== 主循环 ====== */
+function gameLoop() {
+    const player = document.getElementById("player");
+    const slime = document.getElementById("slime");
 
-  if (vx !== 0 || vy !== 0) {
-    const len = Math.hypot(vx,vy);
-    player.x += (vx/len) * player.speed * (dt/16); // scale to frame delta (approx 60fps base)
-    player.y += (vy/len) * player.speed * (dt/16);
-    player.anim += 0.28 * (dt/16);
-  } else {
-    player.anim += 0.08 * (dt/16);
-  }
+    /* 移动 */
+    if (keys["w"]) py -= speed;
+    if (keys["s"]) py += speed;
+    if (keys["a"]) px -= speed;
+    if (keys["d"]) px += speed;
 
-  // clamp to viewport margin
-  const margin = 40;
-  player.x = Math.max(margin, Math.min(window.innerWidth - margin, player.x));
-  player.y = Math.max(margin, Math.min(window.innerHeight - 120, player.y));
+    /* 限制边界 */
+    px = Math.max(0, Math.min(window.innerWidth - 50, px));
+    py = Math.max(0, Math.min(window.innerHeight - 100, py));
 
-  // slime AI: chase player
-  const dx = player.x - slime.x;
-  const dy = player.y - slime.y;
-  const dist = Math.hypot(dx,dy) || 1;
-  const timeFactor = 1 + Math.min(1.2, (performance.now() - startTime)/45000);
-  slime.wobble += 0.12 * (dt/16);
-  slime.x += (dx/dist) * slime.speed * timeFactor * (dt/16) + Math.sin(performance.now()/300)*0.12;
-  slime.y += (dy/dist) * slime.speed * timeFactor * (dt/16) + Math.cos(performance.now()/280)*0.12;
+    player.style.left = px + "px";
+    player.style.top = py + "px";
 
-  // spawn stones increasingly often
-  spawnTimer += dt;
-  const spawnInterval = Math.max(500, 1100 - (performance.now() - startTime)/50);
-  if (spawnTimer > spawnInterval) {
-    spawnTimer = 0;
-    spawnStone();
-  }
+    /* 史莱姆追击 */
+    const dx = px - slimeX;
+    const dy = py - slimeY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    slimeX += dx / dist * 2.2;
+    slimeY += dy / dist * 2.2;
 
-  // update stones positions
-  for (let i = stones.length - 1; i >= 0; i--) {
-    const s = stones[i];
-    s.y += s.vy * (dt/16);
-    s.rot += 0.12 * (dt/16);
-    // transform element
-    s.el.setAttribute('transform', `translate(${s.x}, ${s.y}) rotate(${s.rot})`);
-    // check offscreen
-    if (s.y - s.r > window.innerHeight + 60) {
-      s.el.remove();
-      stones.splice(i,1);
+    slime.style.left = slimeX + "px";
+    slime.style.top = slimeY + "px";
+
+    /* 被史莱姆抓到 */
+    if (hit("p", px, py, "s", slimeX, slimeY)) {
+        death();
     }
-  }
 
-  // slime wobble transform
-  slimeEl.setAttribute('transform', `translate(${slime.x}, ${slime.y})`);
-
-  // player transform
-  playerEl.setAttribute('transform', `translate(${player.x}, ${player.y})`);
-
-  // collisions
-  if (collides(player.x, player.y, player.r, slime.x, slime.y, slime.r * 0.8)) {
-    onDeath('slime');
-    return;
-  }
-  for (let s of stones) {
-    if (collides(player.x, player.y, player.r, s.x, s.y, s.r * 0.9)) {
-      onDeath('stone');
-      return;
-    }
-  }
-
-  // update HUD time
-  survival = (performance.now() - startTime)/1000;
-  hudTime.textContent = survival.toFixed(1);
+    /* 被石头砸到 */
+    document.querySelectorAll(".rock").forEach(rock => {
+        const rx = rock.offsetLeft;
+        const ry = rock.offsetTop;
+        if (hit("p", px, py, "r", rx, ry)) {
+            death();
+        }
+    });
 }
 
-/* Render function (update any visuals not automatically handled) */
-function render(){
-  // stones already transformed
-  // animate CSS classes for player run: toggle when moving
-  // (we use keys to detect movement)
-  const moving = keys['w']||keys['a']||keys['s']||keys['d']||keys['ArrowUp']||keys['ArrowLeft']||keys['ArrowDown']||keys['ArrowRight'];
-  if (moving) {
-    if (!playerEl.classList.contains('player-run')) playerEl.classList.add('player-run');
-  } else {
-    playerEl.classList.remove('player-run');
-  }
+/* ============================= */
+/* ============ 死亡 =========== */
+/* ============================= */
+function death() {
+    document.getElementById("gameArea").style.display = "none";
+    document.getElementById("bluescreen").style.display = "block";
 }
-
-/* Window resize: recompute maybe spawn positions if needed */
-window.addEventListener('resize', () => {
-  fitSVG();
-});
-
-/* Start-screen code rain overlay (drawn on temporary canvas) */
-const rainCanvas = document.createElement('canvas');
-rainCanvas.style.position = 'fixed';
-rainCanvas.style.left = '0';
-rainCanvas.style.top = '0';
-rainCanvas.style.zIndex = '39';
-rainCanvas.style.pointerEvents = 'none';
-document.body.appendChild(rainCanvas);
-const rctx = rainCanvas.getContext('2d');
-function resizeRain() {
-  rainCanvas.width = window.innerWidth;
-  rainCanvas.height = window.innerHeight;
-  rainCanvas.style.width = window.innerWidth + 'px';
-  rainCanvas.style.height = window.innerHeight + 'px';
-  rctx.setTransform(1,0,0,1,0,0);
-}
-window.addEventListener('resize', resizeRain);
-resizeRain();
-
-const rainChars = "01QWERTYUIOPあいうアイウエオ未来AI★";
-const fontSize = 16;
-let cols = Math.floor(window.innerWidth / fontSize);
-let drops = Array(cols).fill(0);
-function drawRain() {
-  if (intro.style.display === 'none') {
-    rctx.clearRect(0,0,rainCanvas.width, rainCanvas.height);
-    return;
-  }
-  rctx.fillStyle = 'rgba(0,0,0,0.12)';
-  rctx.fillRect(0,0,rainCanvas.width, rainCanvas.height);
-  rctx.font = fontSize + 'px monospace';
-  for (let i=0;i<drops.length;i++){
-    const text = rainChars[Math.floor(Math.random() * rainChars.length)];
-    const x = i * fontSize;
-    const y = drops[i] * fontSize;
-    rctx.fillStyle = Math.random() > 0.88 ? '#ff6b6b' : '#00d1a6';
-    rctx.fillText(text, x, y);
-    drops[i]++;
-    if (y > rainCanvas.height && Math.random() > 0.975) drops[i] = 0;
-  }
-}
-const rainTimer = setInterval(drawRain, 70);
-
-/* Remove rain when intro hides */
-const obs = new MutationObserver(() => {
-  if (intro.style.display === 'none') {
-    clearInterval(rainTimer);
-    rctx.clearRect(0,0,rainCanvas.width, rainCanvas.height);
-    rainCanvas.remove();
-  }
-});
-obs.observe(intro, { attributes:true, attributeFilter:['style'] });
-
-/* Utilities: set stone SVG transforms & push stone into list */
-function addStoneToScene(s) {
-  // s: object with el,x,y,r
-  s.el.setAttribute('transform', `translate(${s.x}, ${s.y})`);
-  // add small random face shift by customizing path children if needed
-}
-
-/* create stone and record */
-function spawnStone() {
-  const vw = window.innerWidth;
-  const r = 12 + Math.random()*14;
-  const x = Math.random() * (vw * 0.9) + vw*0.05;
-  const y = -60;
-  const vy = 3 + Math.random()*2.6;
-  const el = createStoneSVG(r);
-  stonesGroup.appendChild(el);
-  const obj = { el, x, y, r, vy, rot: Math.random()*360 };
-  stones.push(obj);
-  addStoneToScene(obj);
-}
-
-/* Expose spawnStone used in update: ensure function exists once */
-window.spawnStone = spawnStone;
-
-/* last housekeeping: start initial positions scaled to screen px */
-function initPositions() {
-  // map logical viewBox 1280x720 to screen scale approx 1:1
-  player.x = window.innerWidth*0.5;
-  player.y = window.innerHeight*0.6;
-  slime.x = window.innerWidth*0.22;
-  slime.y = window.innerHeight*0.22;
-  playerEl.setAttribute('transform', `translate(${player.x}, ${player.y})`);
-  slimeEl.setAttribute('transform', `translate(${slime.x}, ${slime.y})`);
-}
-initPositions();
-
-/* kickstart - keep everything idle until start clicked */
-(function tail() {
-  requestAnimationFrame(tail);
-})();
-
 </script>
+
 </body>
 </html>
