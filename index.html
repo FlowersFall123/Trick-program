@@ -1,326 +1,243 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>我入侵你的电脑咯！</title>
+<title>系统被入侵 · 生存游戏</title>
 <style>
     body {
         margin: 0;
         background: black;
         overflow: hidden;
-        font-family: Consolas, monospace;
-        color: #0f0;
+        font-family: monospace;
+        color: #00ffea;
     }
 
-    /* 代码雨画布 */
-    #matrix {
+    /* ===== 黑客入侵提示 ===== */
+    #intro {
         position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 1;
-    }
-
-    /* 终端文本 */
-    #terminal {
-        position: absolute;
-        top: 20px;
-        left: 20px;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: rgba(0,0,0,0.85);
+        font-size: 24px;
         z-index: 10;
-        white-space: pre-wrap;
-        text-shadow: 0 0 6px #0f0;
-        font-size: 16px;
-        width: 60%;
+        color: #00ffea;
+        animation: blink 1.2s infinite;
     }
-    .cursor {
-        display: inline-block;
-        width: 10px;
-        height: 18px;
-        background: #0f0;
-        animation: blink .7s infinite;
-    }
+
     @keyframes blink {
-        0%, 50% { opacity: 1; }
-        51%, 100% { opacity: 0; }
+        0% {opacity: 1;}
+        50% {opacity: 0.3;}
+        100% {opacity: 1;}
     }
 
-    /* 战斗区 */
-    #arena {
+    #startBtn {
+        margin-top: 20px;
+        padding: 10px 20px;
+        border: 2px solid #00ffea;
+        background: none;
+        color: #00ffea;
+        font-size: 20px;
+        cursor: pointer;
+    }
+    #startBtn:hover {
+        background: #00ffea33;
+    }
+
+    /* ===== 游戏画布 ===== */
+    canvas {
+        display: block;
+    }
+
+    /* ===== 左上角操作提示 ===== */
+    #controlHint {
         position: absolute;
-        bottom: 80px;
-        right: 50px;
-        width: 420px;
-        height: 230px;
-        border: 2px solid #0f0;
-        box-shadow: 0 0 15px #0f0;
-        z-index: 20;
-        background: rgba(0,0,0,0.4);
+        top: 10px;
+        left: 10px;
+        color: #00ffea;
+        font-size: 18px;
+        z-index: 5;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px 10px;
+        border-radius: 5px;
     }
 
-    /* 蓝屏 */
+    /* ===== 蓝屏 ===== */
     #bluescreen {
-        position: fixed;
-        inset: 0;
-        background: #0a36ff;
+        position: absolute;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: #0000AA;
         color: white;
-        font-family: "Segoe UI", sans-serif;
-        text-align: left;
-        padding: 40px;
         font-size: 22px;
-        line-height: 1.6;
+        padding: 40px;
+        white-space: pre-line;
         display: none;
-        z-index: 9999;
+        z-index: 99;
+        font-family: Consolas, monospace;
+    }
+
+    #bsod-btn {
+        margin-top: 20px;
+        padding: 10px;
+        background: white;
+        color: black;
+        cursor: pointer;
+        font-size: 20px;
     }
 </style>
 </head>
 <body>
 
-<!-- 代码雨 -->
-<canvas id="matrix"></canvas>
+<!-- ===== 开始前提示 ===== -->
+<div id="intro">
+    ⚠ 系统正在被入侵…  
+    ⚠ 检测到恶意脚本正在运行…  
+    ⚠ 请进行生存游戏验证你的权限！  
 
-<!-- 终端 -->
-<div id="terminal"></div>
-<div class="cursor"></div>
+    🎮 控制方式：  
+    ➤ **W A S D** = 上 左 下 右  
+    ➤ **方向键 ↑ ← ↓ →** = 上 左 下 右  
 
-<!-- 战斗场 -->
-<div id="arena">
-    <canvas id="battleCanvas" width="420" height="230"></canvas>
+    <button id="startBtn">开始生存挑战</button>
 </div>
 
-<!-- 蓝屏 -->
+<!-- ===== 操作提示（游戏中一直显示） ===== -->
+<div id="controlHint">
+    🎮 控制：W A S D 或 ↑ ← ↓ →
+</div>
+
+<canvas id="game"></canvas>
+
+<!-- ===== 蓝屏 ===== -->
 <div id="bluescreen">
-    <div style="font-size: 80px;">:(</div>
-    <div style="margin-top: 20px;">你的电脑遇到问题，需要重新启动。</div>
-    <div style="margin-top: 10px;">我们只收集某些错误信息，然后我们会为你重新启动。</div>
+    😱 系统崩溃！
 
-    <div style="margin-top: 40px; font-size: 18px;">
-        错误代码：SYSTEM_HACKED_FATAL_ERROR
-    </div>
+    发生致命错误：玩家已死亡  
+    错误代码：STOP 0x000000EF  
+    原因：虫子追上你 或 石头砸到你  
 
-    <div style="margin-top: 20px;">
-        进度： 35%
-    </div>
+    请按任意键继续…
 
-    <div style="margin-top: 50px; font-size: 16px; opacity: .7;">
-        想了解更多信息，请访问 https://fake.windows.support/hacked
-    </div>
-
-    <div style="font-size: 18px; margin-top: 10px;">
-        点击任意位置继续…
-    </div>
+    <button id="bsod-btn">你被捉弄了 😈</button>
 </div>
-
 
 <script>
-/********************************/
-/*        代码雨效果           */
-/********************************/
-const canvas = document.getElementById("matrix");
+/* =============== 初始化画布 =============== */
+const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const chars = "01QWERTYUIOP未来未来AI01アイウエオ";
-const fontSize = 20;
-const columns = canvas.width / fontSize;
-const drops = Array(Math.floor(columns)).fill(1);
+/* =============== 游戏变量 =============== */
+let player = { x: 300, y: 300, size: 20, speed: 4 };
+let bug = { x: 50, y: 50, size: 25, speed: 2 };
+let stones = [];
 
-function drawMatrix() {
-    ctx.fillStyle = "rgba(0, 0, 0, .08)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+let keys = {};
+let alive = true;
 
-    ctx.fillStyle = "#0f0";
-    ctx.font = fontSize + "px monospace";
+/* =============== 控制事件 =============== */
+window.addEventListener("keydown", e => keys[e.key] = true);
+window.addEventListener("keyup", e => keys[e.key] = false);
 
-    drops.forEach((v, i) => {
-        const text = chars[Math.floor(Math.random() * chars.length)];
-        ctx.fillText(text, i * fontSize, v * fontSize);
+/* =============== 小人移动 =============== */
+function movePlayer() {
+    if (keys["w"] || keys["ArrowUp"]) player.y -= player.speed;
+    if (keys["s"] || keys["ArrowDown"]) player.y += player.speed;
+    if (keys["a"] || keys["ArrowLeft"]) player.x -= player.speed;
+    if (keys["d"] || keys["ArrowRight"]) player.x += player.speed;
 
-        if (v * fontSize > canvas.height && Math.random() > 0.95)
-            drops[i] = 0;
+    // 边界检查
+    player.x = Math.max(0, Math.min(canvas.width, player.x));
+    player.y = Math.max(0, Math.min(canvas.height, player.y));
+}
 
-        drops[i]++;
+/* =============== 虫子追人 =============== */
+function moveBug() {
+    let dx = player.x - bug.x;
+    let dy = player.y - bug.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+
+    bug.x += (dx / dist) * bug.speed;
+    bug.y += (dy / dist) * bug.speed;
+}
+
+/* =============== 随机掉落石头 =============== */
+function spawnStone() {
+    stones.push({
+        x: Math.random() * canvas.width,
+        y: -20,
+        size: 20,
+        speed: 3 + Math.random() * 3
     });
 }
-setInterval(drawMatrix, 33);
 
+/* =============== 碰撞检测 =============== */
+function checkCollision() {
+    // 虫子追到
+    let dx = player.x - bug.x;
+    let dy = player.y - bug.y;
+    if (Math.sqrt(dx*dx + dy*dy) < player.size + bug.size) die();
 
-/********************************/
-/*       终端文字效果           */
-/********************************/
-const lines = [
-    "[启动] 正在接入外部指令系统...",
-    "[成功] 量子加速已启用。",
-    "[扫描] 正在分析敌方动作...",
-    "[监控] 战斗画面捕获中...",
-    "",
-    ">>> 战斗即将开始。",
-];
-let idx = 0;
-
-function printTerminal() {
-    if (idx < lines.length) {
-        terminal.textContent += lines[idx++] + "\n";
-        setTimeout(printTerminal, 350);
-    }
-}
-printTerminal();
-
-
-/********************************/
-/*     游戏动画战斗系统         */
-/********************************/
-const canvasBattle = document.getElementById("battleCanvas");
-const bctx = canvasBattle.getContext("2d");
-
-// 玩家动画
-const playerSprites = {
-    idle: new Image(),
-    attack: new Image(),
-    hurt: new Image(),
-    dead: new Image()
-};
-
-// 敌人动画
-const enemySprites = {
-    idle: new Image(),
-    attack: new Image(),
-    hurt: new Image(),
-    dead: new Image()
-};
-
-// 使用可访问的 CDN 图像（真实游戏动作）
-playerSprites.idle.src   = "https://i.imgur.com/fkGx3Dz.png";
-playerSprites.attack.src = "https://i.imgur.com/7ej6ZQy.png";
-playerSprites.hurt.src   = "https://i.imgur.com/7ynJvEh.png";
-playerSprites.dead.src   = "https://i.imgur.com/bJzcLHs.png";
-
-enemySprites.idle.src   = "https://i.imgur.com/sKoG6p4.png";
-enemySprites.attack.src = "https://i.imgur.com/LM0yw32.png";
-enemySprites.hurt.src   = "https://i.imgur.com/ZFsWR06.png";
-enemySprites.dead.src   = "https://i.imgur.com/ZQ6MDJ0.png";
-
-
-// fighter 对象
-function Fighter(x, spriteSet) {
-    this.x = x;
-    this.y = 120;
-    this.hp = 100;
-    this.state = "idle";
-    this.frame = 0;
-    this.frameCount = 4;
-    this.spriteSet = spriteSet;
-
-    this.width = 64;
-    this.height = 64;
+    // 石头砸到
+    stones.forEach(s => {
+        if (Math.abs(player.x - s.x) < player.size &&
+            Math.abs(player.y - s.y) < player.size) die();
+    });
 }
 
-Fighter.prototype.draw = function () {
-    const sprite = this.spriteSet[this.state];
-    const frameX = (this.frame % this.frameCount) * this.width;
-
-    bctx.drawImage(
-        sprite,
-        frameX, 0, this.width, this.height,
-        this.x, this.y, this.width * 2, this.height * 2
-    );
-};
-
-Fighter.prototype.update = function () {
-    this.frame++;
-
-    if (this.state === "dead" && this.frame > 7) {
-        this.frame = 7;
-    }
-};
-
-// 实例化角色
-const p1 = new Fighter(40, playerSprites);
-const p2 = new Fighter(260, enemySprites);
-
-function playAnimation(actor, action) {
-    actor.state = action;
-    actor.frame = 0;
-}
-
-function doAttack(attacker, defender) {
-    playAnimation(attacker, "attack");
-
-    // 命中延迟（动作到位）
-    setTimeout(() => {
-        const dmg = Math.floor(Math.random() * 12 + 8);
-
-        defender.hp -= dmg;
-
-        // 受伤动画
-        playAnimation(defender, "hurt");
-
-        // 闪白效果
-        canvasBattle.style.filter = "brightness(180%)";
-        setTimeout(() => canvasBattle.style.filter = "", 80);
-
-        if (defender.hp <= 0) {
-            defender.hp = 0;
-            playAnimation(defender, "dead");
-            setTimeout(endFight, 1500);
-        }
-
-    }, 250);
-}
-
-function fightLoop() {
-    if (p1.hp <= 0 || p2.hp <= 0) return;
-
-    if (Math.random() > 0.5) {
-        doAttack(p1, p2);
-    } else {
-        doAttack(p2, p1);
-    }
-
-    setTimeout(() => {
-        if (p1.hp > 0 && p2.hp > 0) {
-            playAnimation(p1, "idle");
-            playAnimation(p2, "idle");
-            fightLoop();
-        }
-    }, 900);
-}
-
-// 战斗延迟 3 秒开始
-setTimeout(fightLoop, 3000);
-
-// 渲染器
-function render() {
-    bctx.clearRect(0, 0, canvasBattle.width, canvasBattle.height);
-    p1.update();
-    p2.update();
-    p1.draw();
-    p2.draw();
-    requestAnimationFrame(render);
-}
-render();
-
-
-/********************************/
-/*         蓝屏模拟             */
-/********************************/
-function endFight() {
-    terminal.textContent += "\n>>> 战斗结束\n";
-    terminal.textContent += ">>> 系统异常！检测到未授权攻击！\n";
-    terminal.textContent += ">>> 即将崩溃……\n";
-
-    setTimeout(showBlueScreen, 2000);
-}
-
-function showBlueScreen() {
+/* =============== 蓝屏死亡 =============== */
+function die() {
+    alive = false;
     document.getElementById("bluescreen").style.display = "block";
 }
 
-// 点击蓝屏提示
-document.getElementById("bluescreen").addEventListener("click", () => {
-    alert("你被捉弄啦 😆！");
-});
-</script>
+/* =============== 游戏主循环 =============== */
+function gameLoop() {
+    if (!alive) return;
 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    movePlayer();
+    moveBug();
+    checkCollision();
+
+    // 画玩家
+    ctx.fillStyle = "#00ffea";
+    ctx.fillRect(player.x - 10, player.y - 10, 20, 20);
+
+    // 画虫子
+    ctx.fillStyle = "red";
+    ctx.beginPath();
+    ctx.arc(bug.x, bug.y, bug.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 掉落石头
+    if (Math.random() < 0.02) spawnStone();
+
+    stones.forEach(s => {
+        s.y += s.speed;
+        ctx.fillStyle = "gray";
+        ctx.fillRect(s.x - 10, s.y - 10, 20, 20);
+    });
+
+    requestAnimationFrame(gameLoop);
+}
+
+/* =============== 点击开始游戏 =============== */
+document.getElementById("startBtn").onclick = () => {
+    document.getElementById("intro").style.display = "none";
+    gameLoop();
+};
+
+/* =============== 假蓝屏按钮 =============== */
+document.getElementById("bsod-btn").onclick = () => {
+    alert("😈 你被捉弄啦！电脑没坏~");
+    location.reload();
+};
+</script>
 </body>
 </html>
