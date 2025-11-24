@@ -2,243 +2,73 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>系统入侵 • 生存测试</title>
+<title>系统控制台</title>
 <style>
     body {
         margin: 0;
-        background: black;
+        background: #000;
+        color: #0f0;
         font-family: Consolas, monospace;
+        padding: 20px;
+        font-size: 16px;
         overflow: hidden;
-        color: #0f0;
     }
-
-    /* 入侵界面 */
-    #hackerScreen {
-        position: fixed;
-        inset: 0;
-        background: black;
-        padding: 40px;
-        color: #0f0;
-        font-size: 20px;
-        line-height: 1.6;
-        text-shadow: 0 0 6px #0f0;
-        z-index: 1000;
+    #screen {
+        white-space: pre-wrap;
+        line-height: 1.4;
     }
-
-    #startBtn {
-        margin-top: 40px;
-        padding: 12px 30px;
-        font-size: 22px;
-        color: #000;
+    .cursor {
+        display: inline-block;
+        width: 10px;
         background: #0f0;
-        border: none;
-        cursor: pointer;
-        box-shadow: 0 0 10px #0f0;
+        animation: blink .8s infinite;
     }
-
-    /* 游戏区域 */
-    #gameArea {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: #111;
-        overflow: hidden;
-    }
-
-    /* 火柴人 */
-    #player {
-        position: absolute;
-        width: 50px;
-        height: 100px;
-    }
-
-    /* 火柴人绘制（SVG） */
-    #player svg {
-        width: 100%;
-        height: 100%;
-    }
-
-    /* 史莱姆 */
-    #slime {
-        position: absolute;
-        width: 90px;
-        height: 70px;
-        animation: bounce 1s infinite alternate ease-in-out;
-    }
-
-    @keyframes bounce {
-        0% { transform: translateY(0); }
-        100% { transform: translateY(-15px); }
-    }
-
-    /* 石头 */
-    .rock {
-        position: absolute;
-        width: 50px;
-        height: 50px;
-        animation: fall 2.2s linear forwards;
-    }
-
-    @keyframes fall {
-        from { transform: translateY(-60px) rotate(0deg); }
-        to { transform: translateY(1200px) rotate(360deg); }
-    }
-
-    /* 蓝屏 */
-    #bluescreen {
-        position: fixed;
-        inset: 0;
-        background: #0078D7;
-        color: white;
-        font-family: "Segoe UI", sans-serif;
-        padding: 60px;
-        font-size: 22px;
-        display: none;
-        z-index: 9999;
+    @keyframes blink {
+        0%, 50% { background:#0f0; }
+        51%, 100% { background:transparent; }
     }
 </style>
 </head>
 <body>
 
-<!-- 入侵界面 -->
-<div id="hackerScreen">
-    <div>[警告] 未授权访问检测到...</div>
-    <div>[拦截] 系统控制权正在被夺取...</div>
-    <div>[提示] 若想维持电脑正常运行，你必须完成生存测试。</div>
-    <div>[说明] 使用 W A S D 控制你的火柴人移动。</div>
-    <div>[目标] 躲避史莱姆追击与掉落的石头。</div>
-
-    <button id="startBtn">开始生存测试</button>
-</div>
-
-<!-- 游戏区域 -->
-<div id="gameArea">
-    <!-- 火柴人 SVG -->
-    <div id="player">
-        <svg viewBox="0 0 80 160">
-            <!-- 头 -->
-            <circle cx="40" cy="30" r="25" stroke="#fff" stroke-width="6" fill="none"/>
-            <!-- 身体 -->
-            <line x1="40" y1="55" x2="40" y2="100" stroke="#fff" stroke-width="6" />
-            <!-- 手 -->
-            <line x1="40" y1="70" x2="10" y2="90" stroke="#fff" stroke-width="6" />
-            <line x1="40" y1="70" x2="70" y2="90" stroke="#fff" stroke-width="6" />
-            <!-- 腿 -->
-            <line x1="40" y1="100" x2="15" y2="140" stroke="#fff" stroke-width="6" />
-            <line x1="40" y1="100" x2="65" y2="140" stroke="#fff" stroke-width="6" />
-        </svg>
-    </div>
-
-    <!-- 可爱史莱姆 SVG -->
-    <div id="slime">
-        <svg viewBox="0 0 200 150">
-            <ellipse cx="100" cy="100" rx="90" ry="45" fill="#00ff99" opacity="0.9"/>
-            <circle cx="70" cy="80" r="15" fill="#000"/>
-            <circle cx="130" cy="80" r="15" fill="#000"/>
-        </svg>
-    </div>
-</div>
-
-<!-- 蓝屏 -->
-<div id="bluescreen">
-    <div style="font-size:80px">:(</div>
-    <div style="margin-top:20px">你的设备遇到问题，需要重新启动。</div>
-    <div style="margin-top:10px">我们只收集一些错误信息，然后你可以重新启动。</div>
-    <div style="margin-top:40px;font-size:20px;">错误代码：SLIME_CHASE_FATAL_ERROR</div>
-</div>
+<div id="screen"></div>
+<div class="cursor"></div>
 
 <script>
-/* ============================= */
-/* ====== 游戏开始事件 ========= */
-/* ============================= */
-document.getElementById("startBtn").onclick = () => {
-    document.getElementById("hackerScreen").style.display = "none";
-    document.getElementById("gameArea").style.display = "block";
-    startGame();
-};
+const lines = [
+    "[启动] 连接远程服务器...",
+    "[成功] 建立安全通道。",
+    "[执行] 端口扫描中...",
+    "发现开放端口: 22, 80, 443",
+    "[警告] 发现异常数据包。",
+    "[分析] 尝试解析加密内容...",
+    "解密中 █▋ 32%",
+    "解密中 ████▋ 68%",
+    "解密中 ████████ 100%",
+    "[成功] 获得访问权限。",
+    "[执行] 写入数据...",
+    "[完成] 目标系统已被控制。",
+    "",
+    "正在上传 payload...",
+    "上传完成。",
+    "",
+    ">>> 警告：检测到人类正在靠近设备...",
+    ">>> 正在隐藏踪迹...",
+    ">>> 操作完成。",
+    "",
+    "",
+    "========== 你被朋友恶搞了 😆 =========="
+];
 
-/* 位置与状态 */
-let px = 300, py = 300; 
-let slimeX = 50, slimeY = 50;
-const speed = 5;
-
-/* 控制 */
-const keys = {};
-document.addEventListener("keydown", e => keys[e.key] = true);
-document.addEventListener("keyup", e => keys[e.key] = false);
-
-/* 游戏主循环 */
-function startGame() {
-    setInterval(gameLoop, 20);
-    setInterval(dropRock, 1200);
-}
-
-/* 石头掉落 */
-function dropRock() {
-    const rock = document.createElement("img");
-    rock.src = "https://img.icons8.com/emoji/48/rock-emoji.png";
-    rock.className = "rock";
-    rock.style.left = Math.random() * (window.innerWidth - 50) + "px";
-    document.getElementById("gameArea").appendChild(rock);
-
-    setTimeout(() => rock.remove(), 2500);
-}
-
-/* ====== 碰撞检测 ====== */
-function hit(a, ax, ay, b, bx, by) {
-    return Math.abs(ax - bx) < 50 && Math.abs(ay - by) < 50;
-}
-
-/* ====== 主循环 ====== */
-function gameLoop() {
-    const player = document.getElementById("player");
-    const slime = document.getElementById("slime");
-
-    /* 移动 */
-    if (keys["w"]) py -= speed;
-    if (keys["s"]) py += speed;
-    if (keys["a"]) px -= speed;
-    if (keys["d"]) px += speed;
-
-    /* 限制边界 */
-    px = Math.max(0, Math.min(window.innerWidth - 50, px));
-    py = Math.max(0, Math.min(window.innerHeight - 100, py));
-
-    player.style.left = px + "px";
-    player.style.top = py + "px";
-
-    /* 史莱姆追击 */
-    const dx = px - slimeX;
-    const dy = py - slimeY;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    slimeX += dx / dist * 2.2;
-    slimeY += dy / dist * 2.2;
-
-    slime.style.left = slimeX + "px";
-    slime.style.top = slimeY + "px";
-
-    /* 被史莱姆抓到 */
-    if (hit("p", px, py, "s", slimeX, slimeY)) {
-        death();
+let i = 0;
+function printLine() {
+    if (i < lines.length) {
+        document.getElementById("screen").textContent += lines[i++] + "\n";
+        window.scrollTo(0, document.body.scrollHeight);
+        setTimeout(printLine, 200 + Math.random()*300);
     }
-
-    /* 被石头砸到 */
-    document.querySelectorAll(".rock").forEach(rock => {
-        const rx = rock.offsetLeft;
-        const ry = rock.offsetTop;
-        if (hit("p", px, py, "r", rx, ry)) {
-            death();
-        }
-    });
 }
-
-/* ============================= */
-/* ============ 死亡 =========== */
-/* ============================= */
-function death() {
-    document.getElementById("gameArea").style.display = "none";
-    document.getElementById("bluescreen").style.display = "block";
-}
+printLine();
 </script>
 
 </body>
