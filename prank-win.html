@@ -1,0 +1,82 @@
+<!-- prank_win.html -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>恭喜你中奖！</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: "Segoe UI", Roboto, sans-serif; height:100vh; margin:0;
+           display:flex; align-items:center; justify-content:center; background:#0b1226; color:white; }
+    .card { background: linear-gradient(180deg,#151a2b,#0f1420); padding:30px; border-radius:12px;
+           box-shadow: 0 10px 30px rgba(0,0,0,.5); text-align:center; width:90%; max-width:480px; }
+    .big { font-size:28px; margin-bottom:10px; }
+    .btn { margin-top:18px; padding:12px 20px; border-radius:8px; cursor:pointer; border:none; font-size:16px; }
+    .gold { background: #f6c85f; color:#222; }
+    .close { background:#333; color:#fff; margin-left:8px; }
+    #confetti { position:fixed; inset:0; pointer-events:none; }
+  </style>
+</head>
+<body>
+  <div class="card" role="dialog" aria-labelledby="title" aria-modal="true">
+    <div id="title" class="big">恭喜！您被抽中免费大奖 🎉</div>
+    <div>请点击“领取奖品”以继续。</div>
+    <div>
+      <button id="claim" class="btn gold">领取奖品</button>
+      <button id="no" class="btn close">不了，谢谢</button>
+    </div>
+    <div style="margin-top:14px; font-size:12px; color:#aaa;">* 本页面仅为恶作剧示例，不会收集信息。</div>
+  </div>
+
+  <canvas id="confetti"></canvas>
+
+  <script>
+    const claimBtn = document.getElementById('claim');
+    const noBtn = document.getElementById('no');
+
+    claimBtn.addEventListener('click', () => {
+      burstConfetti();
+      setTimeout(()=> {
+        alert("哈哈！被捉弄了 — 你没有中奖 😄");
+      }, 600);
+    });
+
+    noBtn.addEventListener('click', () => {
+      alert("明智的选择 😅（不过你还是被捉弄了）");
+    });
+
+    // 简单 confetti（轻量）
+    function burstConfetti() {
+      const canvas = document.getElementById('confetti');
+      canvas.width = innerWidth; canvas.height = innerHeight;
+      const ctx = canvas.getContext('2d');
+      const pieces = [];
+      for (let i=0;i<150;i++){
+        pieces.push({
+          x: innerWidth/2 + (Math.random()-0.5)*200,
+          y: innerHeight/2 + (Math.random()-0.5)*40,
+          vx: (Math.random()-0.5)*6,
+          vy: Math.random()*-6 - 2,
+          r: Math.random()*6+2,
+          c: ['#f94144','#f3722c','#f8961e','#f9c74f','#90be6d','#43aa8b','#577590'][~~(Math.random()*7)]
+        });
+      }
+      let t=0;
+      function frame(){
+        t++;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        pieces.forEach(p=>{
+          p.x += p.vx;
+          p.y += p.vy + 0.15*(t/50); // gravity-ish
+          p.vy += 0.02;
+          ctx.fillStyle = p.c;
+          ctx.fillRect(p.x, p.y, p.r, p.r*0.6);
+        });
+        if (t<180) requestAnimationFrame(frame);
+        else ctx.clearRect(0,0,canvas.width,canvas.height);
+      }
+      frame();
+    }
+  </script>
+</body>
+</html>
