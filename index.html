@@ -3,490 +3,536 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>被入侵的生存小游戏 — Q版卡通</title>
+<title>被入侵 · Q 版生存挑战</title>
 <style>
     :root{
-        --bg:#0b0f12;
+        --bg:#0b1014;
+        --panel: rgba(255,255,255,0.03);
         --accent:#00d1a6;
         --cute:#ffd57e;
         --slime:#7ce27c;
         --rock:#c6b89a;
     }
-    html,body{height:100%;margin:0;background:var(--bg);font-family: "Segoe UI", Roboto, "Microsoft Yahei", sans-serif;color:#d7fff0;}
-    canvas{display:block;}
-    /* 顶层提示 / 开始界面 */
+    html,body{height:100%;margin:0;background:var(--bg);font-family: Inter, "Segoe UI", Roboto, "Microsoft Yahei", sans-serif;color:#d7fff0;overflow:hidden;}
+    canvas{display:block;position:fixed;left:0;top:0;z-index:1;}
+
+    /* intro overlay */
     #intro{
         position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-        z-index:40;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.85));
-        gap:18px;padding:24px;text-align:center;
+        z-index:30;background:linear-gradient(180deg, rgba(0,0,0,0.7), rgba(0,0,0,0.85));
+        gap:14px;padding:24px;text-align:center;
     }
-    #intro .warning{
-        color:var(--accent);font-weight:700;font-size:20px;text-shadow:0 0 8px rgba(0,209,166,0.2);
-    }
-    #intro .hacked{
-        color:#ff6b6b;font-size:26px;font-weight:800;
-        -webkit-text-stroke: 0.6px rgba(0,0,0,0.6);
+    .hacked{
+        color:#ff6b6b;font-size:28px;font-weight:800;
+        -webkit-text-stroke: 0.4px rgba(0,0,0,0.5);
         animation:flash 1s linear infinite;
     }
     @keyframes flash{0%{opacity:1}50%{opacity:0.25}100%{opacity:1}}
     #startBtn{
-        background:linear-gradient(90deg, #ffd57e, #ff9f9f);border:none;padding:12px 20px;border-radius:999px;
-        cursor:pointer;font-weight:700;font-size:18px;color:#2b2b2b;box-shadow:0 6px 18px rgba(0,0,0,0.45);
+        background:linear-gradient(90deg,#ffd57e,#ff9f9f);border:none;padding:10px 18px;border-radius:999px;
+        cursor:pointer;font-weight:700;font-size:16px;color:#222;box-shadow:0 8px 22px rgba(0,0,0,0.5);
     }
-    #controlHint{
-        position:fixed;left:12px;top:12px;background:rgba(0,0,0,0.35);padding:8px 12px;border-radius:8px;
-        color:#e8fff6;font-size:14px;z-index:30;border:1px solid rgba(255,255,255,0.04);
-    }
-    #hud{
-        position:fixed;right:12px;top:12px;background:rgba(0,0,0,0.35);padding:8px 12px;border-radius:8px;color:#fff;font-size:14px;z-index:30;
-    }
-    /* 假蓝屏 */
+
+    /* HUD */
+    #controlHint{position:fixed;left:12px;top:12px;background:var(--panel);padding:8px 10px;border-radius:8px;color:#e8fff6;font-size:14px;z-index:32;border:1px solid rgba(255,255,255,0.03)}
+    #hud{position:fixed;right:12px;top:12px;background:var(--panel);padding:8px 10px;border-radius:8px;color:#fff;font-size:14px;z-index:32;border:1px solid rgba(255,255,255,0.03)}
+
+    /* BSOD (仿 Windows 10/11 风格更真实) */
     #bluescreen{
-        position:fixed;inset:0;background:#0a36ff;color:white;font-family: Consolas, monospace;display:none;z-index:60;padding:30px;
+        position:fixed;inset:0;background:#0a36ff;color:white;font-family: Consolas, "Segoe UI", monospace;display:none;z-index:60;padding:40px;
     }
-    #bluescreen .big{font-size:72px;margin-bottom:12px}
-    #bluescreen .desc{font-size:20px;opacity:0.95}
-    #bluescreen button{margin-top:20px;padding:10px 14px;border-radius:8px;border:none;cursor:pointer;font-size:16px}
-    /* 底部小提示 */
-    #footerHint{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;color:rgba(255,255,255,0.22);font-size:13px;z-index:20}
+    #bluescreen .sad{font-size:86px;line-height:0.8}
+    #bluescreen .headline{font-size:20px;margin-top:8px}
+    #bluescreen .details{margin-top:16px;font-size:16px;opacity:0.95;line-height:1.6}
+    #progress{
+        margin-top:20px;width:60%;height:14px;background:rgba(255,255,255,0.12);border-radius:8px;overflow:hidden;
+        border:1px solid rgba(255,255,255,0.06);
+    }
+    #progress .bar{height:100%;width:0%;background:rgba(255,255,255,0.9)}
+    #bsodBtn{margin-top:22px;padding:10px 12px;border-radius:8px;border:none;background:white;color:#0b1220;cursor:pointer;font-weight:700}
+
+    /* footer small */
+    #footer{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:rgba(255,255,255,0.08);font-size:13px;z-index:15}
 </style>
 </head>
 <body>
 
-<!-- 代码雨画布（用于开始界面的被入侵特效） -->
-<canvas id="matrix" style="position:fixed;inset:0;z-index:20;pointer-events:none;"></canvas>
-
-<!-- 游戏画布 -->
 <canvas id="game"></canvas>
-
-<!-- 开始/入侵提示 -->
+<!-- intro + code rain drawn on a separate canvas via JS -->
 <div id="intro">
-    <div class="warning">检测到未授权访问 — 系统完整性遭到破坏</div>
-    <div class="hacked">!!! YOUR MACHINE IS COMPROMISED !!!</div>
-    <div style="max-width:720px;color:#c6fff0;line-height:1.4">
-        为了保护系统，我们会进行生存验证。
-        <br>在规定时间内存活：避免被追捕的史莱姆或被天空掉落的岩石砸中。
+    <div style="color:#00ffb6;font-weight:800;font-size:18px">警告：检测到未授权访问</div>
+    <div class="hacked">YOUR MACHINE IS COMPROMISED</div>
+    <div style="max-width:640px;color:#c6fff0;line-height:1.4">
+        系统触发生存验证。请在被捕捉或被落石砸中前尽可能生存。<br/>
+        控件：W A S D 或 ↑ ← ↓
     </div>
-
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center;">
-        <div style="background:rgba(255,255,255,0.04);padding:8px 12px;border-radius:8px;color:#bfffe8">
-            控制：W A S D 或 ↑ ← ↓
-        </div>
-        <div style="background:rgba(255,255,255,0.04);padding:8px 12px;border-radius:8px;color:#bfffe8">
-            目标：尽可能长时间生存
-        </div>
+    <div style="display:flex;gap:12px;margin-top:8px">
+        <div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.03)">移动：W A S D / 方向键</div>
+        <div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.03)">目标：尽可能长时间生存</div>
     </div>
-
     <button id="startBtn">开始生存挑战</button>
 </div>
 
-<!-- 控制提示（游戏中显示） -->
-<div id="controlHint">控制：W A S D 或 ↑ ← ↓</div>
+<div id="controlHint">控制：W A S D 或方向键</div>
 <div id="hud">生存：<span id="time">0.0</span>s</div>
-<div id="footerHint">本页面为模拟恶搞蓝屏，请勿在真实系统上测试。</div>
+<div id="footer">注：此页面为模拟，非真实系统蓝屏。</div>
 
-<!-- 假蓝屏 -->
+<!-- 蓝屏 -->
 <div id="bluescreen">
-    <div class="big">:(</div>
-    <div class="desc">你的电脑遇到问题，需要重新启动。<br>错误代码：SYSTEM_HACKED_FATAL_ERROR</div>
-    <div style="margin-top:16px">原因：玩家已死亡（被史莱姆追上 或 被石头砸中）</div>
-    <button id="bsodBtn">我被捉弄了 😈（返回）</button>
+    <div class="sad">:(</div>
+    <div class="headline">你的电脑遇到问题，需要重新启动。</div>
+    <div class="details">
+        我们只收集某些错误信息，然后我们将为你重新启动。<br>
+        错误代码：SYSTEM_HACKED_FATAL_ERROR
+    </div>
+    <div id="progress"><div class="bar" id="bar"></div></div>
+    <button id="bsodBtn">我被捉弄了（返回重试）</button>
 </div>
 
 <script>
 /* =========================
-   初始化 & 画布自适应
+   适配与画布
    ========================= */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const matrixCanvas = document.getElementById('matrix');
-const mctx = matrixCanvas.getContext('2d');
-let DPR = window.devicePixelRatio || 1;
 
-function resize() {
+let DPR = window.devicePixelRatio || 1;
+function resize(){
     DPR = window.devicePixelRatio || 1;
     canvas.width = Math.floor(window.innerWidth * DPR);
     canvas.height = Math.floor(window.innerHeight * DPR);
     canvas.style.width = window.innerWidth + 'px';
     canvas.style.height = window.innerHeight + 'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
-
-    matrixCanvas.width = Math.floor(window.innerWidth * DPR);
-    matrixCanvas.height = Math.floor(window.innerHeight * DPR);
-    matrixCanvas.style.width = window.innerWidth + 'px';
-    matrixCanvas.style.height = window.innerHeight + 'px';
-    mctx.setTransform(DPR,0,0,DPR,0,0);
 }
 window.addEventListener('resize', resize);
 resize();
 
 /* =========================
-   被入侵“代码雨 + 警告”特效（仅开始界面）
+   音量（可选，默认静音）
    ========================= */
-const chars = "01あいうえおABCDEF0123456789█▓▒";
-let columns = Math.floor(window.innerWidth / 18);
-let drops = Array(columns).fill(0);
-
-function initMatrix() {
-    columns = Math.floor(window.innerWidth / 18);
-    drops = Array(columns).fill(0);
-}
-initMatrix();
-
-function drawMatrix() {
-    // 背景半透明，产生拖影
-    mctx.fillStyle = 'rgba(0,0,0,0.06)';
-    mctx.fillRect(0,0, window.innerWidth, window.innerHeight);
-
-    mctx.font = '14px monospace';
-    for (let i = 0; i < drops.length; i++) {
-        const text = chars[Math.floor(Math.random()*chars.length)];
-        const x = i * 18;
-        const y = drops[i] * 18;
-        // 前半段绿色，后半段亮绿
-        mctx.fillStyle = Math.random() > 0.85 ? '#00ffb6' : '#00d1a6';
-        mctx.fillText(text, x, y);
-        drops[i]++;
-        if (drops[i] * 18 > window.innerHeight && Math.random() > 0.975) drops[i] = 0;
-    }
-}
-let matrixInterval;
-function startMatrix() {
-    if (matrixInterval) clearInterval(matrixInterval);
-    matrixInterval = setInterval(drawMatrix, 60);
-}
-function stopMatrix() {
-    if (matrixInterval) clearInterval(matrixInterval);
-}
+// (没加音效，如需可要求我加)
 
 /* =========================
-   游戏对象（Q版卡通风）
-   - 玩家：圆头圆脸，带眼睛和小笑脸
-   - 史莱姆（虫子）：圆润、波动，带眼睛
-   - 石头：有表情的可爱岩石
+   游戏对象：Q 版主角（大头短手短脚）
+   史莱姆（双眼可爱，弹跳）
+   石头（可爱岩石）
    ========================= */
+
 let state = 'intro'; // intro | running | dead
+let keys = {};
+let lastTime = performance.now();
+let startTime = 0;
+let survival = 0;
 
 const player = {
-    x: 160, y: 160, r: 18,
-    speed: 3.6,
-    bob: 0
+    x: 300, y: 400, r: 20,
+    speed: 4.2,
+    anim: 0, // animation phase for run bob
+    dir: 1 // facing right 1, left -1
 };
+
 const slime = {
-    x: 60, y: 60, r: 22,
+    x: 120, y: 120, r: 24,
     speed: 1.6,
     wobble: 0
 };
-let stones = []; // {x,y,r,vy,faceOffset}
 
-let keys = {};
-let startTime = 0;
-let elapsed = 0;
-let spawnTimer = 0;
-let survival = 0;
+let stones = []; // {x,y,r,vy,rot,faceShift}
 
 /* ===== 输入 ===== */
 window.addEventListener('keydown', e => {
     keys[e.key] = true;
-    // 允许开始界面用键盘开始
     if (state === 'intro' && (e.key === 'Enter' || e.key === ' ')) {
-        document.getElementById('startBtn').click();
+        startBtn.click();
     }
 });
 window.addEventListener('keyup', e => keys[e.key] = false);
 
-/* =========================
-   绘制辅助：软阴影、卡通风格脸
-   ========================= */
-function drawRoundRect(x,y,w,h,radius,fillStyle,strokeStyle){
-    ctx.beginPath();
-    ctx.moveTo(x+radius,y);
-    ctx.arcTo(x+w,y,x+w,y+h,radius);
-    ctx.arcTo(x+w,y+h,x,y+h,radius);
-    ctx.arcTo(x,y+h,x,y,radius);
-    ctx.arcTo(x,y,x+w,y,radius);
-    if(fillStyle){ ctx.fillStyle = fillStyle; ctx.fill(); }
-    if(strokeStyle){ ctx.strokeStyle = strokeStyle; ctx.stroke(); }
-}
+// 防止方向键滚屏
+window.addEventListener('keydown', function(e){
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+});
 
+/* =========================
+   帧渲染函数：绘制 Q 版角色／史莱姆／可爱石头
+   ========================= */
 function drawPlayer(p){
-    // shadow
     ctx.save();
     ctx.translate(p.x, p.y);
-    // bobbing for walk feel
-    const bob = Math.sin(p.bob) * 3;
+    // bobbing
+    const bob = Math.sin(p.anim) * 4;
     ctx.translate(0, bob);
-    // body
-    ctx.fillStyle = "#ffd57e";
+
+    // body (big head)
+    ctx.fillStyle = '#ffd57e';
     ctx.beginPath();
     ctx.arc(0, 0, p.r, 0, Math.PI*2);
     ctx.fill();
-    // cheek blush
-    ctx.fillStyle = "rgba(255,120,120,0.18)";
-    ctx.beginPath();
-    ctx.arc(-6, 4, 5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath();
-    ctx.arc(6, 4, 5, 0, Math.PI*2); ctx.fill();
+
+    // cheeks
+    ctx.fillStyle = 'rgba(255,120,120,0.2)';
+    ctx.beginPath(); ctx.arc(-7, 6, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(7, 6, 5, 0, Math.PI*2); ctx.fill();
+
     // eyes
-    ctx.fillStyle = "#2b2b2b";
-    ctx.beginPath(); ctx.arc(-6,-2,3,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(6,-2,3,0,Math.PI*2); ctx.fill();
-    // mouth
-    ctx.strokeStyle = "#2b2b2b";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0,6,6,0,Math.PI); ctx.stroke();
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(-7, -3, 3.2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(7, -3, 3.2, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-6.2, -3.6, 1.1, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6.8, -3.6, 1.1, 0, Math.PI*2); ctx.fill();
+
+    // small stubby arms & legs (animate with anim)
+    ctx.strokeStyle = '#e7b26b';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    // arms swing
+    const armSwing = Math.sin(p.anim * 1.8) * 10;
+    ctx.beginPath(); ctx.moveTo(-12, 6); ctx.lineTo(-12 - armSwing*0.12, 16); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(12, 6); ctx.lineTo(12 + armSwing*0.12, 16); ctx.stroke();
+    // legs
+    const legSwing = Math.cos(p.anim * 2.1) * 6;
+    ctx.beginPath(); ctx.moveTo(-7, 18); ctx.lineTo(-7 + legSwing*0.12, 28); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(7, 18); ctx.lineTo(7 - legSwing*0.12, 28); ctx.stroke();
+
     ctx.restore();
 }
 
 function drawSlime(s){
     ctx.save();
     ctx.translate(s.x, s.y);
-    const wob = Math.sin(s.wobble) * 3;
+    // wobble for cute bounce
+    const wob = Math.sin(s.wobble) * 4;
     ctx.translate(0, wob);
-    // body blob
-    ctx.fillStyle = "#7ce27c";
+
+    // blob body
+    ctx.fillStyle = '#7ce27c';
     ctx.beginPath();
-    ctx.moveTo(-s.r,0);
-    ctx.quadraticCurveTo(-s.r, -s.r, 0, -s.r*1.1);
-    ctx.quadraticCurveTo(s.r, -s.r, s.r, 0);
-    ctx.quadraticCurveTo(s.r*0.6, s.r*0.9, s.r*0.2, s.r*0.8);
-    ctx.quadraticCurveTo(0, s.r*0.95, -s.r*0.2, s.r*0.8);
-    ctx.quadraticCurveTo(-s.r*0.6, s.r*0.9, -s.r,0);
+    const r = s.r;
+    ctx.moveTo(-r, 0);
+    ctx.quadraticCurveTo(-r, -r, 0, -r*1.05);
+    ctx.quadraticCurveTo(r, -r, r, 0);
+    ctx.quadraticCurveTo(r*0.6, r*0.9, 0, r*0.95);
+    ctx.quadraticCurveTo(-r*0.6, r*0.9, -r, 0);
     ctx.fill();
-    // eyes
-    ctx.fillStyle = "#222";
-    ctx.beginPath(); ctx.arc(-7,-3,3,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(7,-3,3,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.beginPath(); ctx.arc(-6.2,-3.5,1,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(6.8,-3.5,1,0,Math.PI*2); ctx.fill();
-    // cute mouth (small)
-    ctx.strokeStyle = "#222"; ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(0,6,5,0,Math.PI); ctx.stroke();
+
+    // glossy top
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.beginPath(); ctx.ellipse(-r*0.25, -r*0.6, r*0.35, r*0.18, -0.3, 0, Math.PI*2); ctx.fill();
+
+    // eyes (cute)
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(-8, -6, 3.5,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6, -6, 3.5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(-7.3, -7.2, 1,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6.7, -7.2, 1,0,Math.PI*2); ctx.fill();
+
+    // small smile
+    ctx.strokeStyle = '#123012';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(-4, 2); ctx.quadraticCurveTo(0, 6, 4, 2); ctx.stroke();
+
     ctx.restore();
 }
 
 function drawStone(st){
     ctx.save();
     ctx.translate(st.x, st.y);
-    // rock main rounded
-    ctx.fillStyle = "#c6b89a";
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.beginPath(); ctx.ellipse(0, st.r+6, st.r*0.9, st.r*0.35, 0, 0, Math.PI*2); ctx.fill();
+
+    // rock
+    ctx.fillStyle = '#c6b89a';
     ctx.beginPath();
-    ctx.moveTo(-st.r,0);
+    ctx.moveTo(-st.r, 0);
     ctx.quadraticCurveTo(-st.r, -st.r*0.6, 0, -st.r);
-    ctx.quadraticCurveTo(st.r, -st.r*0.4, st.r,0);
+    ctx.quadraticCurveTo(st.r, -st.r*0.4, st.r, 0);
     ctx.quadraticCurveTo(st.r*0.4, st.r*0.8, 0, st.r*0.9);
     ctx.quadraticCurveTo(-st.r*0.4, st.r*0.8, -st.r,0);
     ctx.fill();
-    // little cracks
-    ctx.strokeStyle = '#a89373'; ctx.lineWidth=1.2;
-    ctx.beginPath(); ctx.moveTo(-st.r*0.2, -st.r*0.2); ctx.lineTo(st.r*0.1, -st.r*0.05); ctx.lineTo(-st.r*0.05, st.r*0.2); ctx.stroke();
+
     // face
-    ctx.fillStyle = "#2b2b2b";
-    ctx.beginPath(); ctx.arc(-6 + st.faceOffset, -2, 2,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(6 + st.faceOffset, -2, 2,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth=1.4;
-    ctx.beginPath(); ctx.moveTo(-4 + st.faceOffset,6); ctx.quadraticCurveTo(0 + st.faceOffset,9,4 + st.faceOffset,6); ctx.stroke();
+    ctx.fillStyle = '#2b2b2b';
+    ctx.beginPath(); ctx.arc(-6 + st.faceShift, -2, 2,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6 + st.faceShift, -2, 2,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(-4 + st.faceShift, 6); ctx.quadraticCurveTo(0 + st.faceShift, 9, 4 + st.faceShift, 6); ctx.stroke();
+
     ctx.restore();
 }
 
 /* =========================
-   游戏逻辑
+   游戏逻辑（移动、AI、掉落、碰撞）
    ========================= */
-function resetGame() {
+
+function reset(){
     player.x = window.innerWidth * 0.5;
     player.y = window.innerHeight * 0.6;
+    player.anim = 0;
     slime.x = window.innerWidth * 0.2;
     slime.y = window.innerHeight * 0.2;
+    slime.wobble = 0;
     stones = [];
     startTime = performance.now();
-    spawnTimer = 0;
-    elapsed = 0;
     survival = 0;
-    alive = true;
+    state = 'running';
+    document.getElementById('time').textContent = '0.0';
+    // ensure BSOD hidden
+    document.getElementById('bluescreen').style.display = 'none';
+    // stop any running progress
+    clearInterval(progressInterval);
+    document.getElementById('bar').style.width = '0%';
 }
 
-let alive = true;
+// spawn stone
+function spawnStone(){
+    const x = Math.random() * window.innerWidth;
+    const r = 12 + Math.random() * 12;
+    stones.push({
+        x: x,
+        y: -60,
+        r: r,
+        vy: 3 + Math.random()*2,
+        faceShift: (Math.random()*6 - 3),
+        rot: Math.random()*Math.PI*2
+    });
+}
 
+// collision helper (circle)
+function collides(aX,aY,aR, bX,bY,bR){
+    return ((aX-bX)*(aX-bX) + (aY-bY)*(aY-bY)) < (aR + bR) * (aR + bR);
+}
+
+/* main update */
+let spawnTimer = 0;
 function update(dt){
     if (state !== 'running') return;
-
-    // player movement
+    // dt in ms
+    // player input
     let vx = 0, vy = 0;
     if (keys['w'] || keys['ArrowUp']) vy -= 1;
     if (keys['s'] || keys['ArrowDown']) vy += 1;
     if (keys['a'] || keys['ArrowLeft']) vx -= 1;
     if (keys['d'] || keys['ArrowRight']) vx += 1;
-    // normalize
-    if (vx !== 0 || vy !== 0) {
-        const inv = player.speed / Math.hypot(vx, vy);
-        player.x += vx * inv;
-        player.y += vy * inv;
-        player.bob += 0.18;
+
+    if (vx !== 0 || vy !== 0){
+        const len = Math.hypot(vx,vy);
+        player.x += (vx / len) * player.speed;
+        player.y += (vy / len) * player.speed;
+        player.anim += 0.28;
+        player.dir = vx >= 0 ? 1 : -1;
     } else {
-        // idle gentle bob
-        player.bob += 0.06;
+        player.anim += 0.08;
     }
 
-    // clamp to viewport
-    player.x = Math.max(30, Math.min(window.innerWidth-30, player.x));
-    player.y = Math.max(30, Math.min(window.innerHeight-30, player.y));
+    // clamp
+    player.x = Math.min(Math.max(30, player.x), window.innerWidth - 30);
+    player.y = Math.min(Math.max(40, player.y), window.innerHeight - 60);
 
-    // slime AI: move toward player with slight random jitter and speed increase over time
+    // slime AI: chase player with slight randomness and speed ramp
     const dx = player.x - slime.x;
     const dy = player.y - slime.y;
     const dist = Math.hypot(dx,dy) || 1;
-    // slime speed slowly ramps up (makes game get harder)
-    const timeFactor = Math.min(1.6, 1 + (performance.now() - startTime)/45000);
+    // ramp speed faintly over time
+    const timeFactor = 1 + Math.min(1.2, (performance.now() - startTime) / 40000);
     slime.wobble += 0.12;
-    const sspd = slime.speed * timeFactor;
-    slime.x += (dx / dist) * sspd + (Math.sin(performance.now()/300) * 0.3);
-    slime.y += (dy / dist) * sspd + (Math.cos(performance.now()/290) * 0.3);
+    slime.x += (dx / dist) * slime.speed * timeFactor + Math.sin(performance.now()/300)*0.2;
+    slime.y += (dy / dist) * slime.speed * timeFactor + Math.cos(performance.now()/280)*0.2;
 
-    // spawn stones occasionally, frequency increases slowly
+    // spawn stones: frequency grows slowly
     spawnTimer += dt;
-    const spawnInterval = Math.max(400, 1200 - (performance.now() - startTime)/40); // ms
-    if (spawnTimer > spawnInterval) {
+    const spawnInterval = Math.max(500, 1100 - (performance.now() - startTime)/50);
+    if (spawnTimer > spawnInterval){
         spawnTimer = 0;
-        const rx = Math.random() * window.innerWidth;
-        const r = 12 + Math.random() * 10;
-        stones.push({x: rx, y: -40, r: r, vy: 3 + Math.random()*2, faceOffset: (Math.random()*6-3)});
+        spawnStone();
     }
 
     // update stones
-    for (let i = stones.length-1; i>=0; i--) {
+    for (let i = stones.length-1; i >= 0; i--){
         const s = stones[i];
-        s.y += s.vy + (Math.sin(performance.now()/600 + i) * 0.3);
-        // simple rotation-like face oscillation
-        s.faceOffset = Math.sin((performance.now()/300 + i) / 100) * 3;
-        // remove if offscreen
+        s.y += s.vy + (Math.sin((performance.now()+i*37)/600) * 0.3);
+        s.rot += 0.06;
+        s.faceShift = Math.sin((performance.now()+i*100)/300) * 3;
+        // remove when far below
         if (s.y - s.r > window.innerHeight + 80) stones.splice(i,1);
     }
 
-    // collisions: slime touches player?
-    const dd = Math.hypot(player.x - slime.x, player.y - slime.y);
-    if (dd < player.r + slime.r * 0.75) {
-        // die
-        onDeath('slime');
+    // collisions:
+    // slime catch
+    if (collides(player.x, player.y, player.r, slime.x, slime.y, slime.r * 0.8)){
+        die('slime');
+        return;
     }
-
-    // stone collision: approximate bounding boxes
-    for (let i = 0; i < stones.length; i++){
-        const s = stones[i];
-        if (Math.abs(player.x - s.x) < player.r + s.r*0.6 &&
-            Math.abs(player.y - s.y) < player.r + s.r*0.6) {
-            onDeath('stone');
-            break;
+    // stone hits
+    for (let s of stones){
+        if (collides(player.x, player.y, player.r, s.x, s.y, s.r * 0.9)){
+            die('stone');
+            return;
         }
     }
+
     // update survival time
-    elapsed = (performance.now() - startTime) / 1000;
-    survival = elapsed;
+    survival = (performance.now() - startTime) / 1000;
     document.getElementById('time').textContent = survival.toFixed(1);
 }
 
-/* =========================
-   渲染
-   ========================= */
+/* render loop */
 function render(){
-    // background: soft gradient
-    ctx.clearRect(0,0,canvas.width, canvas.height);
-    // fill with slight gradient for cute vibe
+    // simple, clean background after start (no flashy)
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // soft gradient
     const g = ctx.createLinearGradient(0,0,0,window.innerHeight);
-    g.addColorStop(0, "#081017");
-    g.addColorStop(1, "#09121a");
+    g.addColorStop(0, '#09121a');
+    g.addColorStop(1, '#061018');
     ctx.fillStyle = g;
     ctx.fillRect(0,0,window.innerWidth, window.innerHeight);
 
-    // subtle ground shadow
-    ctx.fillStyle = "rgba(0,0,0,0.12)";
-    ctx.fillRect(0, window.innerHeight - 70, window.innerWidth, 70);
+    // ground shadow strip
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillRect(0, window.innerHeight - 60, window.innerWidth, 60);
 
-    // stones (behind player sometimes)
-    for (let s of stones) {
-        drawStone(s);
-    }
+    // draw stones (behind slime sometimes)
+    for (let s of stones) drawStone(s);
 
-    // draw slime (behind slightly)
+    // draw slime
     drawSlime(slime);
 
-    // draw player on top
+    // draw player
     drawPlayer(player);
-
-    // cute HUD: small hearts? we have only survival/time displayed separately
 }
 
-/* =========================
-   死亡与蓝屏
-   ========================= */
-function onDeath(by){
-    if (state !== 'running') return;
-    state = 'dead';
-    alive = false;
-    // small effect: flash screen
-    const flash = document.createElement('div');
-    flash.style.position = 'fixed'; flash.style.inset = '0'; flash.style.zIndex = 50;
-    flash.style.background = 'rgba(255,255,255,0.12)'; document.body.appendChild(flash);
-    setTimeout(()=>{ document.body.removeChild(flash); }, 160);
-    // show fake bluescreen after short delay
-    setTimeout(()=>{
-        document.getElementById('bluescreen').style.display = 'block';
-        // stop matrix
-        stopMatrix();
-    }, 700);
-}
-
-/* =========================
-   主循环（时间驱动）
-   ========================= */
-let last = performance.now();
+/* main loop */
 function loop(now){
-    const dt = now - last;
-    last = now;
-    if (state === 'intro') {
-        // draw matrix overlay (start screen)
-        // matrix drawn separately via interval
-    } else if (state === 'running') {
-        update(dt);
-        render();
-    } else if (state === 'dead') {
-        // freeze, maybe animate small death particle - keep canvas as is
-    }
+    const dt = now - lastTime;
+    lastTime = now;
+    if (state === 'running') update(dt);
+    render();
     requestAnimationFrame(loop);
 }
+let lastTime = performance.now();
 requestAnimationFrame(loop);
 
 /* =========================
-   交互：开始按钮、蓝屏按钮
+   Death & BSOD handling
    ========================= */
-document.getElementById('startBtn').addEventListener('click', ()=>{
-    // hide intro, start game
+let progressInterval = null;
+
+function die(by){
+    if (state === 'dead') return;
+    state = 'dead';
+    // small flash
+    const flash = document.createElement('div');
+    flash.style.position = 'fixed';
+    flash.style.inset = '0';
+    flash.style.background = 'rgba(255,255,255,0.12)';
+    flash.style.zIndex = 50;
+    document.body.appendChild(flash);
+    setTimeout(()=>document.body.removeChild(flash),160);
+
+    // show realistic BSOD
+    const bs = document.getElementById('bluescreen');
+    bs.style.display = 'block';
+
+    // animate progress bar to feel like real windows collecting info
+    const bar = document.getElementById('bar');
+    let pct = 0;
+    bar.style.width = '0%';
+    clearInterval(progressInterval);
+    progressInterval = setInterval(()=>{
+        pct += Math.random()*6;
+        if (pct >= 100) pct = 100;
+        bar.style.width = pct + '%';
+        if (pct >= 100) clearInterval(progressInterval);
+    }, 300);
+
+    // stop game activity
+    // (state already 'dead')
+}
+
+/* =========================
+   Start / Controls hooking
+   ========================= */
+const startBtn = document.getElementById('startBtn');
+startBtn.addEventListener('click', ()=>{
+    // hide intro
     document.getElementById('intro').style.display = 'none';
-    startMatrix(); // keep code rain subtle in background while playing
-    state = 'running';
-    resetGame();
-    startTime = performance.now();
-    last = performance.now();
+    // simple one-time subtle code-rain effect removed: keep background simple
+    // start game
+    reset();
+    lastTime = performance.now();
 });
 
+// bsod button
 document.getElementById('bsodBtn').addEventListener('click', ()=>{
-    alert('你被捉弄啦 😆！（返回页面）');
-    // reload to restart
+    alert('你被捉弄啦 😆！');
     location.reload();
 });
 
-/* ensure matrix runs only on intro initially */
-startMatrix();
+/* =========================
+   Start-screen "code rain" overlay (only while intro visible)
+   ========================= */
+/* We'll draw simple matrix on a separate small overlay canvas to keep start screen "被入侵"感觉 */
+const rainCanvas = document.createElement('canvas');
+rainCanvas.style.position = 'fixed';
+rainCanvas.style.left = '0';
+rainCanvas.style.top = '0';
+rainCanvas.style.zIndex = 25;
+rainCanvas.style.pointerEvents = 'none';
+document.body.appendChild(rainCanvas);
+const rctx = rainCanvas.getContext('2d');
+function resizeRain(){
+    rainCanvas.width = window.innerWidth;
+    rainCanvas.height = window.innerHeight;
+    rainCanvas.style.width = window.innerWidth + 'px';
+    rainCanvas.style.height = window.innerHeight + 'px';
+}
+window.addEventListener('resize', resizeRain);
+resizeRain();
 
-/* when window resized, reinit matrix */
-window.addEventListener('resize', ()=>{
-    initMatrix();
-    resize();
+const rainChars = "01QWERTYUIOPあいうアイウエオ未来AI";
+const fontSize = 16;
+let rainCols = Math.floor(window.innerWidth / fontSize);
+let rainDrops = Array(rainCols).fill(0);
+
+function drawRain(){
+    if (document.getElementById('intro').style.display === 'none') {
+        // if intro hidden, fade out the rain hiding it
+        rctx.clearRect(0,0,rainCanvas.width, rainCanvas.height);
+        return;
+    }
+    rctx.fillStyle = 'rgba(0,0,0,0.18)';
+    rctx.fillRect(0,0,rainCanvas.width, rainCanvas.height);
+    rctx.font = fontSize + 'px monospace';
+    for (let i=0;i<rainDrops.length;i++){
+        const text = rainChars[Math.floor(Math.random()*rainChars.length)];
+        const x = i * fontSize;
+        const y = rainDrops[i] * fontSize;
+        rctx.fillStyle = Math.random() > 0.88 ? '#ff6b6b' : '#00d1a6';
+        rctx.fillText(text, x, y);
+        rainDrops[i]++;
+        if (y > rainCanvas.height && Math.random()>0.975) rainDrops[i] = 0;
+    }
+}
+let rainTimer = setInterval(drawRain, 70);
+
+/* Stop rain when intro hidden */
+const obs = new MutationObserver(()=> {
+    if (document.getElementById('intro').style.display === 'none') {
+        clearInterval(rainTimer);
+        rctx.clearRect(0,0,rainCanvas.width, rainCanvas.height);
+        rainCanvas.parentElement.removeChild(rainCanvas);
+    }
 });
+obs.observe(document.getElementById('intro'), { attributes: true, attributeFilter: ['style'] });
 
-/* Prevent accidental text selection with keys */
-window.addEventListener('keydown', function(e){
-    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+/* =========================
+   Resize safety on first load
+   ========================= */
+window.addEventListener('load', ()=> {
+    resize();
 });
 </script>
 </body>
