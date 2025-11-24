@@ -23,30 +23,17 @@
 
     .player {
         position: absolute;
-        width: 20px;
+        width: 40px;
         height: 60px;
+        background-color: transparent;
+        background-position: center;
+        background-size: contain;
+        background-repeat: no-repeat;
     }
 
-    /* 火柴人身体 */
-    .player::after {
-        content: "";
-        position: absolute;
-        width: 4px;
-        height: 55px;
-        background: white;
-        left: 8px;
-    }
-
-    /* 火柴人头 */
-    .player::before {
-        content: "";
-        position: absolute;
-        width: 12px;
-        height: 12px;
-        background: white;
-        border-radius: 50%;
-        top: -12px;
-        left: 4px;
+    /* 隐藏原先的伪元素（改用图片） */
+    .player::after, .player::before {
+        display: none;
     }
 
     /* 子弹 */
@@ -123,8 +110,8 @@ const PLAYER_W = 20;
 const PLAYER_H = 60;
 
 let players = [
-    { x: 200, y: 500, vx: 0, vy: 0, color: "cyan", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } },
-    { x: 900, y: 500, vx: 0, vy: 0, color: "red", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } }
+    { x: 200, y: 500, vx: 0, vy: 0, img: "https://www.keaitupian.cn/cjpic/frombd/1/253/728328963/1751682274.jpg", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } },
+    { x: 900, y: 500, vx: 0, vy: 0, img: "https://c-ssl.dtstatic.com/uploads/blog/202303/25/20230325215809_01644.thumb.400_0.jpeg", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } }
 ];
 
 let keys = {};
@@ -137,7 +124,16 @@ let ground = window.innerHeight - 80;
 players.forEach((p, i) => {
     p.el = document.createElement("div");
     p.el.className = "player";
-    p.el.style.background = p.color;
+    if (p.img) {
+        p.el.style.backgroundImage = `url(${p.img})`;
+        p.el.style.backgroundSize = "contain";
+        p.el.style.backgroundRepeat = "no-repeat";
+        p.el.style.backgroundPosition = "center";
+    } else {
+        p.el.style.background = p.color;
+    }
+    p.el.style.width = PLAYER_W + "px";
+    p.el.style.height = PLAYER_H + "px";
     game.appendChild(p.el);
 });
 
@@ -182,18 +178,9 @@ function handleTap(key) {
             p.lastTap.right = now;
         }
     }
-    // 玩家1 下键立即冲刺（备用）
+    // 玩家1 下键发射子弹
     if (key === "s") {
-        const p = players[0];
-        if (p.skillTimer <= 0) {
-            p.isDashing = true;
-            p.dashTimer = 12;
-            p.skillTimer = p.skillCooldown;
-            // 保持当前朝向或默认向右
-            let dir = p.vx >= 0 ? 1 : -1;
-            p.dashVel = dir * 12;
-            p.vx = p.dashVel;
-        }
+        shoot(0);
     }
 
     // 玩家2 左
@@ -224,17 +211,9 @@ function handleTap(key) {
             p.lastTap.right = now;
         }
     }
-    // 玩家2 下键立即冲刺（备用）
+    // 玩家2 下键发射子弹
     if (key === "ArrowDown") {
-        const p = players[1];
-        if (p.skillTimer <= 0) {
-            p.isDashing = true;
-            p.dashTimer = 12;
-            p.skillTimer = p.skillCooldown;
-            let dir = p.vx >= 0 ? 1 : -1;
-            p.dashVel = dir * 12;
-            p.vx = p.dashVel;
-        }
+        shoot(1);
     }
 }
 
@@ -247,8 +226,8 @@ function shoot(i) {
         (keys["ArrowRight"] ? 1 : keys["ArrowLeft"] ? -1 : -1);
 
     let b = {
-        x: players[i].x + 10,
-        y: players[i].y + 20,
+        x: players[i].x + PLAYER_W / 2,
+        y: players[i].y + PLAYER_H / 2,
         vx: dir * 8,
         owner: i
     };
@@ -412,7 +391,7 @@ function loop() {
 
         if (p.y > ground) { p.y = ground; p.vy = 0; p.jumpCount = 0; }
         if (p.x < 0) p.x = 0;
-        if (p.x > window.innerWidth - 20) p.x = window.innerWidth - 20;
+        if (p.x > window.innerWidth - PLAYER_W) p.x = window.innerWidth - PLAYER_W;
 
         p.el.style.left = p.x + "px";
         p.el.style.top = p.y + "px";
@@ -433,7 +412,9 @@ function loop() {
         // 检测击中
         players.forEach((p, i) => {
             if (!p.alive || b.owner === i) return;
-            if (Math.abs(b.x - p.x) < 20 && Math.abs(b.y - p.y) < 50) {
+            const px = p.x + PLAYER_W / 2;
+            const py = p.y + PLAYER_H / 2;
+            if (Math.abs(b.x - px) < PLAYER_W && Math.abs(b.y - py) < PLAYER_H / 2 + 10) {
                 die(i);
             }
         });
