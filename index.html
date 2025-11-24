@@ -123,8 +123,8 @@ const PLAYER_W = 20;
 const PLAYER_H = 60;
 
 let players = [
-    { x: 200, y: 500, vx: 0, vy: 0, color: "cyan", alive: true, skillKey: "g", skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0 },
-    { x: 900, y: 500, vx: 0, vy: 0, color: "red", alive: true, skillKey: "k", skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0 }
+    { x: 200, y: 500, vx: 0, vy: 0, color: "cyan", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } },
+    { x: 900, y: 500, vx: 0, vy: 0, color: "red", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } }
 ];
 
 let keys = {};
@@ -142,8 +142,101 @@ players.forEach((p, i) => {
 });
 
 /* 键盘监听 */
-document.addEventListener("keydown", e => keys[e.key] = true);
+// 处理按键与双击检测
+document.addEventListener("keydown", e => {
+    if (!keys[e.key]) handleTap(e.key);
+    keys[e.key] = true;
+});
 document.addEventListener("keyup", e => keys[e.key] = false);
+
+function handleTap(key) {
+    const now = performance.now();
+    // 玩家1: a / d / s ； 玩家2: ArrowLeft / ArrowRight / ArrowDown
+    // 双击方向触发冲刺
+    // 玩家1 左
+    if (key === "a") {
+        const p = players[0];
+        if (now - p.lastTap.left < 300 && p.skillTimer <= 0) {
+            // 触发冲刺向左
+            p.isDashing = true;
+            p.dashTimer = 12;
+            p.skillTimer = p.skillCooldown;
+            p.dashVel = -12;
+            p.vx = p.dashVel;
+            p.lastTap.left = 0;
+        } else {
+            p.lastTap.left = now;
+        }
+    }
+    // 玩家1 右
+    if (key === "d") {
+        const p = players[0];
+        if (now - p.lastTap.right < 300 && p.skillTimer <= 0) {
+            p.isDashing = true;
+            p.dashTimer = 12;
+            p.skillTimer = p.skillCooldown;
+            p.dashVel = 12;
+            p.vx = p.dashVel;
+            p.lastTap.right = 0;
+        } else {
+            p.lastTap.right = now;
+        }
+    }
+    // 玩家1 下键立即冲刺（备用）
+    if (key === "s") {
+        const p = players[0];
+        if (p.skillTimer <= 0) {
+            p.isDashing = true;
+            p.dashTimer = 12;
+            p.skillTimer = p.skillCooldown;
+            // 保持当前朝向或默认向右
+            let dir = p.vx >= 0 ? 1 : -1;
+            p.dashVel = dir * 12;
+            p.vx = p.dashVel;
+        }
+    }
+
+    // 玩家2 左
+    if (key === "ArrowLeft") {
+        const p = players[1];
+        if (now - p.lastTap.left < 300 && p.skillTimer <= 0) {
+            p.isDashing = true;
+            p.dashTimer = 12;
+            p.skillTimer = p.skillCooldown;
+            p.dashVel = -12;
+            p.vx = p.dashVel;
+            p.lastTap.left = 0;
+        } else {
+            p.lastTap.left = now;
+        }
+    }
+    // 玩家2 右
+    if (key === "ArrowRight") {
+        const p = players[1];
+        if (now - p.lastTap.right < 300 && p.skillTimer <= 0) {
+            p.isDashing = true;
+            p.dashTimer = 12;
+            p.skillTimer = p.skillCooldown;
+            p.dashVel = 12;
+            p.vx = p.dashVel;
+            p.lastTap.right = 0;
+        } else {
+            p.lastTap.right = now;
+        }
+    }
+    // 玩家2 下键立即冲刺（备用）
+    if (key === "ArrowDown") {
+        const p = players[1];
+        if (p.skillTimer <= 0) {
+            p.isDashing = true;
+            p.dashTimer = 12;
+            p.skillTimer = p.skillCooldown;
+            let dir = p.vx >= 0 ? 1 : -1;
+            p.dashVel = dir * 12;
+            p.vx = p.dashVel;
+        }
+    }
+}
 
 /* 发射子弹 */
 function shoot(i) {
@@ -184,8 +277,14 @@ spawnRock();
 
 /* 平台系统 */
 let platforms = [];
-function createPlatform(x, y, width) {
+function createPlatform(x, y, width, opts = {}) {
     let plat = { x, y, width };
+    plat.type = opts.type || "static"; // static | moving | disappear
+    plat.baseY = y;
+    plat.amplitude = opts.amplitude || 0;
+    plat.speed = opts.speed || 0;
+    plat.phase = opts.phase || 0;
+    plat.lifespan = opts.lifespan || 0; // frames for disappear type
     plat.el = document.createElement("div");
     plat.el.className = "platform";
     plat.el.style.left = plat.x + "px";
@@ -193,6 +292,7 @@ function createPlatform(x, y, width) {
     plat.el.style.width = plat.width + "px";
     game.appendChild(plat.el);
     platforms.push(plat);
+    return plat;
 }
 
 ground = window.innerHeight - 80;
@@ -200,6 +300,38 @@ ground = window.innerHeight - 80;
 createPlatform(300, ground - 150, 160);
 createPlatform(700, ground - 250, 120);
 createPlatform(Math.max(100, window.innerWidth / 2 - 60), ground - 350, 140);
+// frame counter for animations
+let frameCount = 0;
+
+// 动态生成平台（最多 7 个）
+function spawnDynamicPlatform() {
+    if (platforms.length >= 7) return;
+    const w = 80 + Math.random() * 160;
+    const x = Math.random() * (window.innerWidth - w - 40) + 20;
+    const baseY = 120 + Math.random() * (ground - 220);
+    const r = Math.random();
+    if (r < 0.35) {
+        // moving
+        createPlatform(x, baseY, w, {
+            type: "moving",
+            amplitude: 30 + Math.random() * 80,
+            speed: 0.004 + Math.random() * 0.02,
+            phase: Math.random() * Math.PI * 2
+        });
+    } else if (r < 0.7) {
+        // disappearing
+        createPlatform(x, baseY, w, {
+            type: "disappear",
+            lifespan: 300 + Math.floor(Math.random() * 600)
+        });
+    } else {
+        // static
+        createPlatform(x, baseY, w, { type: "static" });
+    }
+}
+
+// 周期生成平台
+setInterval(spawnDynamicPlatform, 1200);
 
 window.addEventListener("resize", () => {
     ground = window.innerHeight - 80;
@@ -215,7 +347,8 @@ function loop() {
             if (keys["a"]) p.vx = -4;
             else if (keys["d"]) p.vx = 4;
             else p.vx = 0;
-            if (keys["w"] && p.y >= ground) p.vy = -10;
+            // 跳跃（支持二段跳）：按下触发一次，释放后可再次触发
+            if (keys["w"] && p.jumpCount < 2) { p.vy = -10; p.jumpCount++; keys["w"] = false; }
             if (keys["f"]) { keys["f"] = false; shoot(0); }
             // 技能：G 冲刺
             if (keys["g"] && p.skillTimer <= 0) {
@@ -231,7 +364,7 @@ function loop() {
             if (keys["ArrowLeft"]) p.vx = -4;
             else if (keys["ArrowRight"]) p.vx = 4;
             else p.vx = 0;
-            if (keys["ArrowUp"] && p.y >= ground) p.vy = -10;
+            if (keys["ArrowUp"] && p.jumpCount < 2) { p.vy = -10; p.jumpCount++; keys["ArrowUp"] = false; }
             if (keys["/"]) { keys["/"] = false; shoot(1); }
             // 技能：K 冲刺
             if (keys["k"] && p.skillTimer <= 0) {
@@ -263,7 +396,8 @@ function loop() {
         if (p.skillTimer > 0) p.skillTimer--;
 
         // 平台碰撞检测（从上方落下时）
-        platforms.forEach(plat => {
+        for (let pi = platforms.length - 1; pi >= 0; pi--) {
+            const plat = platforms[pi];
             if (p.vy >= 0 &&
                 p.x + PLAYER_W > plat.x &&
                 p.x < plat.x + plat.width &&
@@ -271,10 +405,12 @@ function loop() {
                 p.y + PLAYER_H <= plat.y + p.vy + 10) {
                 p.y = plat.y - PLAYER_H;
                 p.vy = 0;
+                // 着地重置二段跳
+                p.jumpCount = 0;
             }
-        });
+        }
 
-        if (p.y > ground) p.y = ground;
+        if (p.y > ground) { p.y = ground; p.vy = 0; p.jumpCount = 0; }
         if (p.x < 0) p.x = 0;
         if (p.x > window.innerWidth - 20) p.x = window.innerWidth - 20;
 
@@ -303,6 +439,30 @@ function loop() {
         });
     });
 
+    /* 平台更新：移动 / 消失 / 重绘 */
+    for (let i = platforms.length - 1; i >= 0; i--) {
+        const plat = platforms[i];
+        if (plat.type === "moving") {
+            plat.y = plat.baseY + Math.sin(frameCount * plat.speed + plat.phase) * plat.amplitude;
+            plat.el.style.top = plat.y + "px";
+        } else {
+            // 静态 or disappear use baseY unless lifespan causes blink
+            plat.el.style.top = plat.y + "px";
+        }
+
+        if (plat.type === "disappear") {
+            plat.lifespan--;
+            // 快要消失时开始闪烁
+            if (plat.lifespan < 60) {
+                plat.el.style.opacity = (Math.floor(plat.lifespan / 6) % 2) ? "0.3" : "1";
+            }
+            if (plat.lifespan <= 0) {
+                plat.el.remove();
+                platforms.splice(i, 1);
+            }
+        }
+    }
+
     /* 落石更新 */
     rocks.forEach((r, idx) => {
         r.y += r.vy;
@@ -324,10 +484,10 @@ function loop() {
 
     // 更新顶部信息（技能冷却显示）
     let infoHtml = `<b>操作说明：</b><br>
-        玩家1： A 左 | D 右 | W 跳 | F 发射子弹 | G 冲刺（冷却：${Math.max(0, Math.ceil(players[0].skillTimer/60))}s）<br>
-        玩家2： ← 左 | → 右 | ↑ 跳 | / 发射子弹 | K 冲刺（冷却：${Math.max(0, Math.ceil(players[1].skillTimer/60))}s）`;
+        玩家1： A 左（双击冲刺） | D 右（双击冲刺） | W 跳（双段） | S 向下冲刺 | F 发射子弹（冷却：${Math.max(0, Math.ceil(players[0].skillTimer/60))}s）<br>
+        玩家2： ← 左（双击冲刺） | → 右（双击冲刺） | ↑ 跳（双段） | ↓ 向下冲刺 | / 发射子弹（冷却：${Math.max(0, Math.ceil(players[1].skillTimer/60))}s）`;
     document.getElementById("info").innerHTML = infoHtml;
-
+    frameCount++;
     requestAnimationFrame(loop);
 }
 loop();
