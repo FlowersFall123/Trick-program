@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>电脑入侵</title>
+<title>我入侵你的电脑咯！</title>
 <style>
     body {
         margin: 0;
@@ -43,38 +43,17 @@
         51%, 100% { opacity: 0; }
     }
 
-    /* 战斗区域 */
+    /* 战斗区 */
     #arena {
         position: absolute;
         bottom: 80px;
         right: 50px;
-        width: 400px;
-        height: 200px;
+        width: 420px;
+        height: 230px;
         border: 2px solid #0f0;
         box-shadow: 0 0 15px #0f0;
         z-index: 20;
-    }
-
-    .fighter {
-        position: absolute;
-        bottom: 0;
-        font-size: 40px;
-        color: #0f0;
-        text-shadow: 0 0 8px #0f0;
-        transition: transform .25s;
-    }
-
-    .hp {
-        position: absolute;
-        top: -20px;
-        width: 60px;
-        height: 8px;
-        background: rgba(0,255,0,0.2);
-        border: 1px solid #0f0;
-    }
-    .hp-inner {
-        height: 100%;
-        background: #0f0;
+        background: rgba(0,0,0,0.4);
     }
 
     /* 蓝屏 */
@@ -98,24 +77,16 @@
 <!-- 代码雨 -->
 <canvas id="matrix"></canvas>
 
-<!-- 终端文字 -->
+<!-- 终端 -->
 <div id="terminal"></div>
 <div class="cursor"></div>
 
 <!-- 战斗场 -->
 <div id="arena">
-    <div id="p1" class="fighter" style="left: 40px;">🤺</div>
-    <div id="p1hp" class="hp" style="left: 40px; top:20px;">
-        <div class="hp-inner" id="p1hpinner" style="width:100%;"></div>
-    </div>
-
-    <div id="p2" class="fighter" style="right: 40px;">🪖</div>
-    <div id="p2hp" class="hp" style="right: 40px; top:20px;">
-        <div class="hp-inner" id="p2hpinner" style="width:100%;"></div>
-    </div>
+    <canvas id="battleCanvas" width="420" height="230"></canvas>
 </div>
 
-<!-- 蓝屏界面 -->
+<!-- 蓝屏 -->
 <div id="bluescreen">
     <div style="font-size: 80px;">:(</div>
     <div style="margin-top: 20px;">你的电脑遇到问题，需要重新启动。</div>
@@ -140,16 +111,16 @@
 
 
 <script>
-/* ========================== */
-/* ======== 代码雨 ========== */
-/* ========================== */
+/********************************/
+/*        代码雨效果           */
+/********************************/
 const canvas = document.getElementById("matrix");
 const ctx = canvas.getContext("2d");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const chars = "01QWERTYUIOPあいうアイウエオ未来未来未来01";
+const chars = "01QWERTYUIOP未来未来AI01アイウエオ";
 const fontSize = 20;
 const columns = canvas.width / fontSize;
 const drops = Array(Math.floor(columns)).fill(1);
@@ -174,9 +145,9 @@ function drawMatrix() {
 setInterval(drawMatrix, 33);
 
 
-/* ========================== */
-/* ====== 终端文字效果 ====== */
-/* ========================== */
+/********************************/
+/*       终端文字效果           */
+/********************************/
 const lines = [
     "[启动] 正在接入外部指令系统...",
     "[成功] 量子加速已启用。",
@@ -186,7 +157,6 @@ const lines = [
     ">>> 战斗即将开始。",
 ];
 let idx = 0;
-const terminal = document.getElementById("terminal");
 
 function printTerminal() {
     if (idx < lines.length) {
@@ -197,102 +167,160 @@ function printTerminal() {
 printTerminal();
 
 
-/* ========================== */
-/* ===== 小人战斗系统 ======= */
-/* ========================== */
-let p1hp = 100, p2hp = 100;
-const p1 = document.getElementById("p1");
-const p2 = document.getElementById("p2");
-const p1hpinner = document.getElementById("p1hpinner");
-const p2hpinner = document.getElementById("p2hpinner");
+/********************************/
+/*     游戏动画战斗系统         */
+/********************************/
+const canvasBattle = document.getElementById("battleCanvas");
+const bctx = canvasBattle.getContext("2d");
 
-/* === 小人受击闪红效果 === */
-function hitEffect(player) {
-    player.style.filter = "brightness(300%)";
-    player.style.transform += " scale(1.15)";
-    setTimeout(() => {
-        player.style.filter = "";
-        player.style.transform = player.style.transform.replace(" scale(1.15)", "");
-    }, 150);
+// 玩家动画
+const playerSprites = {
+    idle: new Image(),
+    attack: new Image(),
+    hurt: new Image(),
+    dead: new Image()
+};
+
+// 敌人动画
+const enemySprites = {
+    idle: new Image(),
+    attack: new Image(),
+    hurt: new Image(),
+    dead: new Image()
+};
+
+// 使用可访问的 CDN 图像（真实游戏动作）
+playerSprites.idle.src   = "https://i.imgur.com/fkGx3Dz.png";
+playerSprites.attack.src = "https://i.imgur.com/7ej6ZQy.png";
+playerSprites.hurt.src   = "https://i.imgur.com/7ynJvEh.png";
+playerSprites.dead.src   = "https://i.imgur.com/bJzcLHs.png";
+
+enemySprites.idle.src   = "https://i.imgur.com/sKoG6p4.png";
+enemySprites.attack.src = "https://i.imgur.com/LM0yw32.png";
+enemySprites.hurt.src   = "https://i.imgur.com/ZFsWR06.png";
+enemySprites.dead.src   = "https://i.imgur.com/ZQ6MDJ0.png";
+
+
+// fighter 对象
+function Fighter(x, spriteSet) {
+    this.x = x;
+    this.y = 120;
+    this.hp = 100;
+    this.state = "idle";
+    this.frame = 0;
+    this.frameCount = 4;
+    this.spriteSet = spriteSet;
+
+    this.width = 64;
+    this.height = 64;
 }
 
-/* === 小人后退 === */
-function knockBack(player, dir) {
-    player.style.transform += ` translateX(${dir * 25}px)`;
-    setTimeout(() => {
-        player.style.transform = "";
-    }, 200);
+Fighter.prototype.draw = function () {
+    const sprite = this.spriteSet[this.state];
+    const frameX = (this.frame % this.frameCount) * this.width;
+
+    bctx.drawImage(
+        sprite,
+        frameX, 0, this.width, this.height,
+        this.x, this.y, this.width * 2, this.height * 2
+    );
+};
+
+Fighter.prototype.update = function () {
+    this.frame++;
+
+    if (this.state === "dead" && this.frame > 7) {
+        this.frame = 7;
+    }
+};
+
+// 实例化角色
+const p1 = new Fighter(40, playerSprites);
+const p2 = new Fighter(260, enemySprites);
+
+function playAnimation(actor, action) {
+    actor.state = action;
+    actor.frame = 0;
 }
 
-function fight() {
-    if (p1hp <= 0 || p2hp <= 0) return endFight();
+function doAttack(attacker, defender) {
+    playAnimation(attacker, "attack");
 
-    const attacker = Math.random() > 0.5 ? "p1" : "p2";
+    // 命中延迟（动作到位）
+    setTimeout(() => {
+        const dmg = Math.floor(Math.random() * 12 + 8);
 
-    if (attacker === "p1") {
-        // 前冲攻击
-        p1.style.transform = "translateX(30px) scale(1.1)";
-        setTimeout(() => p1.style.transform = "", 200);
+        defender.hp -= dmg;
 
-        // 减血
-        const damage = Math.floor(Math.random() * 10 + 8);
-        p2hp -= damage;
-        p2hpinner.style.width = p2hp + "%";
+        // 受伤动画
+        playAnimation(defender, "hurt");
 
-        // 受击特效
-        hitEffect(p2);
-        knockBack(p2, 1);
+        // 闪白效果
+        canvasBattle.style.filter = "brightness(180%)";
+        setTimeout(() => canvasBattle.style.filter = "", 80);
 
+        if (defender.hp <= 0) {
+            defender.hp = 0;
+            playAnimation(defender, "dead");
+            setTimeout(endFight, 1500);
+        }
+
+    }, 250);
+}
+
+function fightLoop() {
+    if (p1.hp <= 0 || p2.hp <= 0) return;
+
+    if (Math.random() > 0.5) {
+        doAttack(p1, p2);
     } else {
-        p2.style.transform = "translateX(-30px) scale(1.1)";
-        setTimeout(() => p2.style.transform = "", 200);
-
-        const damage = Math.floor(Math.random() * 10 + 8);
-        p1hp -= damage;
-        p1hpinner.style.width = p1hp + "%";
-
-        hitEffect(p1);
-        knockBack(p1, -1);
+        doAttack(p2, p1);
     }
 
-    setTimeout(fight, 700); // 更自然的战斗节奏
+    setTimeout(() => {
+        if (p1.hp > 0 && p2.hp > 0) {
+            playAnimation(p1, "idle");
+            playAnimation(p2, "idle");
+            fightLoop();
+        }
+    }, 900);
 }
-setTimeout(fight, 3500);
+
+// 战斗延迟 3 秒开始
+setTimeout(fightLoop, 3000);
+
+// 渲染器
+function render() {
+    bctx.clearRect(0, 0, canvasBattle.width, canvasBattle.height);
+    p1.update();
+    p2.update();
+    p1.draw();
+    p2.draw();
+    requestAnimationFrame(render);
+}
+render();
 
 
-/* ========================== */
-/* ====== 战斗结束 → 蓝屏 ===== */
-/* ========================== */
+/********************************/
+/*         蓝屏模拟             */
+/********************************/
 function endFight() {
-    const winner = p1hp > 0 ? "左侧小人胜利" : "右侧小人胜利";
-
-    terminal.textContent += "\n>>> 战斗结束：" + winner + "\n";
+    terminal.textContent += "\n>>> 战斗结束\n";
     terminal.textContent += ">>> 系统异常！检测到未授权攻击！\n";
     terminal.textContent += ">>> 即将崩溃……\n";
-
-    // 倒地动画
-    if (p1hp <= 0) p1.style.transform = "rotate(90deg) translateY(40px)";
-    if (p2hp <= 0) p2.style.transform = "rotate(-90deg) translateY(40px)";
 
     setTimeout(showBlueScreen, 2000);
 }
 
-
-/* ========================== */
-/* ======== 蓝屏模拟 ========= */
-/* ========================== */
 function showBlueScreen() {
-    const blue = document.getElementById("bluescreen");
-    blue.style.display = "block";
+    document.getElementById("bluescreen").style.display = "block";
 }
 
-/* 修复点击无反应问题 */
-document.getElementById("bluescreen").addEventListener("click", function () {
+// 点击蓝屏提示
+document.getElementById("bluescreen").addEventListener("click", () => {
     alert("你被捉弄啦 😆！");
 });
-
 </script>
 
 </body>
 </html>
-
