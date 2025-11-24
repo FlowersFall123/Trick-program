@@ -1,265 +1,299 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-cn">
 <head>
 <meta charset="UTF-8" />
-<title>Quantum Terminal</title>
+<title>Hacker Simulation</title>
 <style>
-    /* 全局样式 */
     html, body {
         margin: 0;
-        background: black;
+        height: 100%;
+        background: #000;
         overflow: hidden;
         font-family: Consolas, monospace;
         color: #0f0;
     }
 
-    /* 代码雨背景层 */
-    canvas#matrix {
+    /* 粒子背景 */
+    canvas#particles {
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: 1;
-        opacity: 0.25;
+        inset: 0;
+        z-index: -3;
     }
 
-    /* 终端主界面 */
+    /* 代码雨 */
+    canvas#rain {
+        position: fixed;
+        inset: 0;
+        z-index: -2;
+    }
+
+    /* 终端窗口 */
     #terminal {
         position: absolute;
         top: 5%;
-        left: 5%;
+        left: 50%;
+        transform: translateX(-50%);
         width: 90%;
-        height: 90%;
-        background: rgba(0, 0, 0, 0.55);
-        border: 2px solid #0f0;
-        border-radius: 12px;
+        height: 80%;
         padding: 20px;
-        box-shadow: 0 0 20px #0f0;
-        z-index: 2;
+        background: rgba(0, 20, 0, 0.35);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0,255,0,0.2);
+        border-radius: 20px;
+        box-shadow: 0 0 25px #0f05 inset, 0 0 15px #0f05;
         overflow-y: auto;
-        white-space: pre-wrap;
-        font-size: 18px;
-        backdrop-filter: blur(4px);
+        color: #0f0;
+        font-size: 16px;
+        z-index: 2;
     }
 
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-thumb { background: #0f0; }
-
-    /* 光标 */
+    /* 打字光标 */
     .cursor {
         display: inline-block;
         width: 10px;
         height: 20px;
         background: #0f0;
-        animation: blink .5s infinite;
+        animation: blink 0.6s infinite;
     }
     @keyframes blink {
         0%, 50% { opacity: 1; }
-        51%, 100% { opacity: 0; }
+        50%, 100% { opacity: 0; }
     }
 
-    /* 被捉弄弹窗 */
-    #prankPopup {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0,0,0,0.85);
+    /* 点击弹窗 */
+    .popup {
+        position: absolute;
+        min-width: 260px;
+        padding: 20px;
+        background: rgba(0,40,0,0.85);
+        border: 1px solid #0f0;
+        border-radius: 10px;
+        box-shadow: 0 0 20px #0f0;
         color: #0f0;
-        padding: 40px 60px;
-        font-size: 28px;
-        border: 3px solid #0f0;
-        z-index: 9999;
-        display: none;
-        border-radius: 14px;
-        text-align: center;
-        box-shadow: 0 0 25px #0f0;
-        animation: popupFade 0.6s ease-out;
+        font-size: 14px;
+        backdrop-filter: blur(6px);
+        animation: fadeIn .3s ease;
+        z-index: 10;
     }
-    @keyframes popupFade {
-        from { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
-        to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(.8); } }
+
+    /* HUD 扫描 */
+    #hud {
+        position: fixed;
+        top: 10%;
+        right: 3%;
+        width: 180px;
+        height: 140px;
+        background: rgba(0,30,0,0.4);
+        border: 1px solid #0f0;
+        border-radius: 10px;
+        box-shadow: 0 0 15px #0f08;
+        overflow: hidden;
+        z-index: 5;
+    }
+    #hudScan {
+        position: absolute;
+        width: 100%;
+        height: 20px;
+        background: linear-gradient(to bottom, transparent, rgba(0,255,0,.4), transparent);
+        animation: scan 2s linear infinite;
+    }
+    @keyframes scan {
+        0% { top: -20px; }
+        100% { top: 140px; }
     }
 
-    /* 蓝屏恶搞 */
-    #blueScreen {
+    /* 鼠标光点 */
+    #light {
         position: fixed;
-        top: 0; left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: #0000aa;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        pointer-events: none;
+        background: radial-gradient(#0f05, transparent);
+        mix-blend-mode: screen;
+        z-index: 20;
+    }
+
+    /* 蓝屏 */
+    #bsod {
+        position: fixed;
+        inset: 0;
+        background: #001b7a;
         color: #fff;
-        font-size: 32px;
-        padding: 80px;
-        display: none;
-        z-index: 99999;
         font-family: Consolas;
+        display: none;
+        padding: 40px;
+        z-index: 999;
+        font-size: 22px;
+        line-height: 1.6;
     }
 </style>
 </head>
 
 <body>
-
-<canvas id="matrix"></canvas>
+<canvas id="particles"></canvas>
+<canvas id="rain"></canvas>
 
 <div id="terminal"></div>
-<div class="cursor"></div>
 
-<div id="prankPopup">😂 你被朋友恶搞了！</div>
+<div id="hud">
+    <div id="hudScan"></div>
+</div>
 
-<div id="blueScreen">
-    <b>:(  Your device ran into a fake problem.</b><br><br>
-    This is a prank blue screen<br>
-    Just refresh the page to reboot.<br><br>
-    *** STOP: 0x00000000 (0xERROR_FAKE, 0xPRANK_MODE)
+<div id="light"></div>
+
+<div id="bsod">
+    <h1>:(</h1>
+    <p>你的系统遇到问题，需要重启。</p>
+    <p>正在收集错误信息 ... 完成。</p>
+    <p>错误代码：FAKE_SECURITY_BREAK</p>
 </div>
 
 <script>
-/* ==========================
-      MATRIX 代码雨背景
-========================== */
-const canvas = document.getElementById("matrix");
-const ctx = canvas.getContext("2d");
-
-canvas.height = window.innerHeight;
-canvas.width = window.innerWidth;
-
-const characters = "01{}[]=<>/\\*&^%$#@!"; 
-const drops = Array(Math.ceil(canvas.width / 20)).fill(0);
-
-function drawMatrix() {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = "#0f0";
-    ctx.font = "20px Consolas";
-
-    drops.forEach((y, x) => {
-        const text = characters[Math.floor(Math.random() * characters.length)];
-        ctx.fillText(text, x * 20, y * 20);
-        drops[x] = y * 20 > canvas.height && Math.random() > 0.95 ? 0 : y + 1;
+/* 粒子背景 */
+const pCanvas = document.getElementById("particles");
+const pCtx = pCanvas.getContext("2d");
+let pArray = [];
+function resize() {
+    pCanvas.width = innerWidth;
+    pCanvas.height = innerHeight;
+}
+window.onresize = resize;
+resize();
+for (let i = 0; i < 120; i++) {
+    pArray.push({
+        x: Math.random() * innerWidth,
+        y: Math.random() * innerHeight,
+        r: Math.random() * 2,
+        dx: (Math.random()-0.5) * 0.4,
+        dy: (Math.random()-0.5) * 0.4
     });
 }
-setInterval(drawMatrix, 50);
+function drawParticles() {
+    pCtx.clearRect(0,0,pCanvas.width,pCanvas.height);
+    pCtx.fillStyle = "#0f0";
+    pArray.forEach(p => {
+        p.x += p.dx; p.y += p.dy;
+        if(p.x<0||p.x>innerWidth) p.dx*=-1;
+        if(p.y<0||p.y>innerHeight) p.dy*=-1;
+        pCtx.fillRect(p.x,p.y,p.r,p.r);
+    });
+    requestAnimationFrame(drawParticles);
+}
+drawParticles();
 
-
-/* ==========================
-       高级黑客日志数组
-========================== */
-const logs = [
-"> 正在初始化安全模块……",
-"> 建立量子加密通道…… OK",
-"> 载入代理节点：44 个",
-"> 节点延迟均衡……完成",
-"> 连接深度网络主机……成功",
-"> 正在部署内存溢出攻击向量……",
-"> 执行远程注入…… 96%",
-"> 正在读取系统结构……",
-"> 触发系统监控警告！",
-"> 护盾反击开始：准备震动",
-"> === 屏幕震动启动 ===",
-"> 擦除访问记录……成功",
-"> 系统即将保护性蓝屏……",
-"",
-"> 加载量子防火墙接口……成功",
-"> Q-Node 引擎加载……完成",
-"> 分布式引导程序加载……正常",
-"> 建立全局内存加速通道……成功",
-"> GPU 神经调度单元已激活",
-"> 4096-bit 密钥生成完成",
-"> 深度网络多节点侦查中…… 12%……67%……100%",
-"> 伪装流量部署成功",
-"> 正在绕过行为检测系统……",
-"> 伪造系统指纹……完成",
-"> 目标服务器响应延迟：8ms",
-"> 深层结构解密中……",
-"> 正在抓取隐藏目录 ……",
-"> 找到加密文件：core.vault",
-"> 正在强制解锁密钥……",
-"> 解锁成功！",
-"",
-"> 载入拓扑图……完成",
-"> 正在分析权限链路……",
-"> 管理员通道：弱口令发现",
-"> 正在尝试暴力破解……",
-"> 破解成功：密码为 『guest123』",
-"> 注入管理员令牌……完成",
-"> 获取系统根权限……成功",
-"",
-"> 触发安全子系统反馈",
-"> 反入侵模块尝试屏蔽操作",
-"> 处理冲突……忽略",
-"> 重写系统日志……完成",
-"> 深度操作执行中……",
-"",
-"> 任务完成：已完全控制目标系统。",
-"> === 你被朋友恶搞了 😆 ==="
-];
-
-
-/* ==========================
-        终端打印功能
-========================== */
-let index = 0;
-function printLog() {
-    const terminal = document.getElementById("terminal");
-    if (index < logs.length) {
-        terminal.textContent += logs[index] + "\n";
-        terminal.scrollTop = terminal.scrollHeight;
-
-        // 触发震动
-        if (logs[index].includes("震动")) {
-            screenShake();
-        }
-
-        // 触发蓝屏
-        if (logs[index].includes("蓝屏")) {
-            setTimeout(showBlueScreen, 3000);
-        }
-
-        index++;
-        setTimeout(printLog, 150 + Math.random() * 200);
+/* 代码雨 */
+const rCanvas = document.getElementById("rain");
+const rCtx = rCanvas.getContext("2d");
+function rainResize() {
+    rCanvas.width = innerWidth;
+    rCanvas.height = innerHeight;
+}
+rainResize();
+const font = 14;
+const columns = rCanvas.width / font;
+let drops = [];
+for(let i=0;i<columns;i++) drops[i] = Math.random() * rCanvas.height;
+function drawRain() {
+    rCtx.fillStyle = "rgba(0,0,0,0.1)";
+    rCtx.fillRect(0,0,rCanvas.width,rCanvas.height);
+    rCtx.fillStyle = "#0f0";
+    for(let i=0;i<drops.length;i++){
+        let text = String.fromCharCode(0x30A0 + Math.random()*96);
+        rCtx.fillText(text, i*font, drops[i]*font);
+        drops[i]++;
+        if(drops[i]*font > rCanvas.height) drops[i] = 0;
     }
+    requestAnimationFrame(drawRain);
 }
-printLog();
+drawRain();
 
+/* 打字机（含错字修复） */
+const terminal = document.getElementById("terminal");
+const lines = [
+    "> 初始化安全模块……",
+    "> 建立量子加密通道…… OK",
+    "> 载入代理节点：44 个",
+    "> 节点延迟均衡……完成",
+    "> 连接深度网络主机……成功",
+    "> 正在部署内存溢出攻击向量……",
+    "> 执行远程注入…… 96%",
+    "> 正在读取系统结构……",
+    "> 触发系统监控警告！",
+    "> 护盾反击开始：准备震动",
+    "> === 屏幕震动启动 ===",
+    "> 擦除访问记录……成功",
+    "> 系统即将保护性蓝屏……"
+];
+let idx = 0;
+let charIdx = 0;
+let wrongChance = 0.12;
+let wrongChar = "";
 
-/* ==========================
-         屏幕震动
-========================== */
-function screenShake() {
-    const body = document.body;
-    let i = 0;
-    const shake = setInterval(() => {
-        body.style.transform = `translate(${(Math.random() - 0.5) * 10}px, ${(Math.random() - 0.5) * 10}px)`;
-        if (i++ > 15) {
-            clearInterval(shake);
-            body.style.transform = "translate(0,0)";
-        }
-    }, 50);
+function type() {
+    if(idx >= lines.length) {
+        setTimeout(() => {
+            document.body.style.animation = "shake 0.2s infinite";
+            showBSOD();
+        }, 800);
+        return;
+    }
+    let line = lines[idx];
+
+    let out = line.substring(0, charIdx);
+
+    // 错字场景
+    if (Math.random() < wrongChance && wrongChar === "") {
+        wrongChar = String.fromCharCode(33 + Math.random()*60);
+        out += wrongChar;
+    } else if (wrongChar !== "") {
+        // 修正错字
+        wrongChar = "";
+    }
+
+    terminal.innerHTML = terminal.innerHTML.replace(/<span.*$/, "");
+    terminal.innerHTML += out + '<span class="cursor"></span>';
+
+    if (wrongChar !== "") {
+        setTimeout(()=>type(), 80);
+        return;
+    }
+
+    charIdx++;
+    if(charIdx > line.length) {
+        idx++;
+        charIdx = 0;
+        terminal.innerHTML += "<br>";
+        setTimeout(()=>type(), 300);
+    } else setTimeout(()=>type(), 40);
 }
+type();
 
+/* 点击弹窗 */
+document.addEventListener("click", e=>{
+    const div = document.createElement("div");
+    div.className = "popup";
+    div.style.left = e.clientX + "px";
+    div.style.top = e.clientY + "px";
+    div.innerHTML = "⚠ SYSTEM SCAN<br>入侵行为已记录<br>位置坐标：" + e.clientX + "," + e.clientY;
+    document.body.appendChild(div);
+    setTimeout(()=>div.remove(), 1500);
+});
 
-/* ==========================
-         假蓝屏
-========================== */
-function showBlueScreen() {
-    document.getElementById("blueScreen").style.display = "block";
+/* 鼠标光点 */
+const light = document.getElementById("light");
+document.addEventListener("mousemove", e=>{
+    light.style.left = (e.clientX - 12)+"px";
+    light.style.top = (e.clientY - 12)+"px";
+});
+
+/* 蓝屏 */
+function showBSOD() {
+    setTimeout(()=>{
+        document.getElementById("bsod").style.display = "block";
+    }, 1500);
 }
-
-
-/* ==========================
-       点击显示捉弄提示
-========================== */
-document.addEventListener("click", () => {
-    const pop = document.getElementById("prankPopup");
-    pop.style.display = "block";
-    setTimeout(() => { pop.style.opacity = 0; }, 2500);
-    setTimeout(() => { pop.remove(); }, 3500);
-}, { once: true });
-
 </script>
-
 </body>
 </html>
