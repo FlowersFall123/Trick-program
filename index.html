@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>黑客终端模拟系统</title>
+<title>电脑入侵</title>
 <style>
     body {
         margin: 0;
@@ -186,6 +186,7 @@ const lines = [
     ">>> 战斗即将开始。",
 ];
 let idx = 0;
+const terminal = document.getElementById("terminal");
 
 function printTerminal() {
     if (idx < lines.length) {
@@ -200,6 +201,28 @@ printTerminal();
 /* ===== 小人战斗系统 ======= */
 /* ========================== */
 let p1hp = 100, p2hp = 100;
+const p1 = document.getElementById("p1");
+const p2 = document.getElementById("p2");
+const p1hpinner = document.getElementById("p1hpinner");
+const p2hpinner = document.getElementById("p2hpinner");
+
+/* === 小人受击闪红效果 === */
+function hitEffect(player) {
+    player.style.filter = "brightness(300%)";
+    player.style.transform += " scale(1.15)";
+    setTimeout(() => {
+        player.style.filter = "";
+        player.style.transform = player.style.transform.replace(" scale(1.15)", "");
+    }, 150);
+}
+
+/* === 小人后退 === */
+function knockBack(player, dir) {
+    player.style.transform += ` translateX(${dir * 25}px)`;
+    setTimeout(() => {
+        player.style.transform = "";
+    }, 200);
+}
 
 function fight() {
     if (p1hp <= 0 || p2hp <= 0) return endFight();
@@ -207,19 +230,32 @@ function fight() {
     const attacker = Math.random() > 0.5 ? "p1" : "p2";
 
     if (attacker === "p1") {
-        p1.style.transform = "translateX(20px)";
+        // 前冲攻击
+        p1.style.transform = "translateX(30px) scale(1.1)";
         setTimeout(() => p1.style.transform = "", 200);
 
-        p2hp -= Math.floor(Math.random() * 10 + 5);
+        // 减血
+        const damage = Math.floor(Math.random() * 10 + 8);
+        p2hp -= damage;
         p2hpinner.style.width = p2hp + "%";
+
+        // 受击特效
+        hitEffect(p2);
+        knockBack(p2, 1);
+
     } else {
-        p2.style.transform = "translateX(-20px)";
+        p2.style.transform = "translateX(-30px) scale(1.1)";
         setTimeout(() => p2.style.transform = "", 200);
 
-        p1hp -= Math.floor(Math.random() * 10 + 5);
+        const damage = Math.floor(Math.random() * 10 + 8);
+        p1hp -= damage;
         p1hpinner.style.width = p1hp + "%";
+
+        hitEffect(p1);
+        knockBack(p1, -1);
     }
-    setTimeout(fight, 500);
+
+    setTimeout(fight, 700); // 更自然的战斗节奏
 }
 setTimeout(fight, 3500);
 
@@ -234,11 +270,11 @@ function endFight() {
     terminal.textContent += ">>> 系统异常！检测到未授权攻击！\n";
     terminal.textContent += ">>> 即将崩溃……\n";
 
-    // 2秒后开始蓝屏
-    setTimeout(showBlueScreen, 2000);
+    // 倒地动画
+    if (p1hp <= 0) p1.style.transform = "rotate(90deg) translateY(40px)";
+    if (p2hp <= 0) p2.style.transform = "rotate(-90deg) translateY(40px)";
 
-    if (p1hp <= 0) p1.style.transform = "rotate(90deg)";
-    if (p2hp <= 0) p2.style.transform = "rotate(-90deg)";
+    setTimeout(showBlueScreen, 2000);
 }
 
 
@@ -246,14 +282,17 @@ function endFight() {
 /* ======== 蓝屏模拟 ========= */
 /* ========================== */
 function showBlueScreen() {
-    document.body.innerHTML += ""; // 保险
-    document.getElementById("bluescreen").style.display = "block";
+    const blue = document.getElementById("bluescreen");
+    blue.style.display = "block";
 }
 
-document.getElementById("bluescreen").addEventListener("click", () => {
+/* 修复点击无反应问题 */
+document.getElementById("bluescreen").addEventListener("click", function () {
     alert("你被捉弄啦 😆！");
 });
+
 </script>
 
 </body>
 </html>
+
