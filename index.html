@@ -106,8 +106,8 @@ const game = document.getElementById("game");
 const winnerText = document.getElementById("winner");
 const restartBtn = document.getElementById("restart");
 
-const PLAYER_W = 20;
-const PLAYER_H = 60;
+const PLAYER_W = 48;
+const PLAYER_H = 72;
 
 let players = [
     { x: 200, y: 500, vx: 0, vy: 0, img: "https://www.keaitupian.cn/cjpic/frombd/1/253/728328963/1751682274.jpg", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } },
@@ -124,16 +124,35 @@ let ground = window.innerHeight - 80;
 players.forEach((p, i) => {
     p.el = document.createElement("div");
     p.el.className = "player";
-    if (p.img) {
-        p.el.style.backgroundImage = `url(${p.img})`;
-        p.el.style.backgroundSize = "contain";
-        p.el.style.backgroundRepeat = "no-repeat";
-        p.el.style.backgroundPosition = "center";
-    } else {
-        p.el.style.background = p.color;
-    }
+    // 先设置尺寸与样式
     p.el.style.width = PLAYER_W + "px";
     p.el.style.height = PLAYER_H + "px";
+    p.el.style.borderRadius = "6px";
+    p.el.style.boxShadow = "0 2px 6px rgba(0,0,0,0.4)";
+    // 如果有图片，尝试预加载以便处理 onerror 回退
+    if (p.img) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            p.el.style.backgroundImage = `url(${p.img})`;
+            p.el.style.backgroundSize = "cover";
+            p.el.style.backgroundRepeat = "no-repeat";
+            p.el.style.backgroundPosition = "center";
+        };
+        img.onerror = () => {
+            // 回退样式
+            p.el.style.background = "#999";
+            p.el.innerText = i === 0 ? "P1" : "P2";
+            p.el.style.color = "#111";
+            p.el.style.display = "flex";
+            p.el.style.alignItems = "center";
+            p.el.style.justifyContent = "center";
+            p.el.style.fontWeight = "bold";
+        };
+        img.src = p.img;
+    } else {
+        p.el.style.background = p.color || "#0ea5a0";
+    }
     game.appendChild(p.el);
 });
 
@@ -418,6 +437,23 @@ function loop() {
                 die(i);
             }
         });
+        // 子弹击碎落石检测
+        for (let ri = rocks.length - 1; ri >= 0; ri--) {
+            const r = rocks[ri];
+            // 简单矩形/距离检测
+            const rx = r.x + 15; // rock width ~30
+            const ry = r.y + 15;
+            const distX = Math.abs(b.x - rx);
+            const distY = Math.abs(b.y - ry);
+            if (distX < 24 && distY < 24) {
+                // 移除落石与子弹
+                if (r.el) r.el.remove();
+                rocks.splice(ri, 1);
+                if (b.el) b.el.remove();
+                bullets.splice(idx, 1);
+                break;
+            }
+        }
     });
 
     /* 平台更新：移动 / 消失 / 重绘 */
