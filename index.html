@@ -1,531 +1,228 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<title>双人火柴人对战（落石 + 子弹）</title>
-<style>
-    body {
-        margin: 0;
-        background: #111827;
-        overflow: hidden;
-        color: white;
-        font-family: Arial;
-        text-align: center;
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>数据爬取</title>
+  <style>
+    html,body{height:100%;margin:0;font-family:Consolas,monospace;background:#000;color:#0f0;overflow:hidden}
+    /* 背景代码雨 */
+    .matrix{
+      position:fixed;left:0;top:0;width:100%;height:100%;background:#000;z-index:0;mix-blend-mode:screen;
     }
+    .matrix canvas{width:100%;height:100%;display:block}
+    /* 终端窗口 */
+    #terminal{
+      position:relative;z-index:2;box-sizing:border-box;padding:28px 36px;height:100vh;overflow:auto;
+      background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.3));
+      text-shadow:0 0 6px rgba(0,255,150,0.08);
+      color: #7cffb2;
+    }
+    .cmd-line{opacity:0;transform:translateY(6px);animation:fadeUp .45s forwards}
+    @keyframes fadeUp{to{opacity:1;transform:none}}
+    .typed{display:inline-block}
+    .cursor{display:inline-block;width:10px;height:18px;background:#7cffb2;margin-left:4px;vertical-align:middle;animation:blink 0.8s steps(2) infinite}
+    @keyframes blink{50%{opacity:0}}
+    /* 进度条 */
+    .progress{margin-top:20px;height:18px;width:70%;background:linear-gradient(90deg,#001100,#003300);border-radius:6px;border:1px solid rgba(124,255,178,0.12);overflow:hidden;box-shadow:0 0 18px rgba(124,255,178,0.06)}
+    .progress > span{display:block;height:100%;width:0;background:linear-gradient(90deg,#00ff84,#00c2ff);transition:width 0.12s linear}
+    /* 扫描条 */
+    .scanner{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:1;background:linear-gradient(180deg,transparent,rgba(0,255,150,0.03),transparent);mix-blend-mode:overlay;animation:scan 3s linear infinite}
+    @keyframes scan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
 
-    #game {
-        position: relative;
-        width: 100vw;
-        height: 100vh;
-        background: radial-gradient(circle at center, #1f2937, #0f172a);
-        overflow: hidden;
-    }
-
-    .player {
-        position: absolute;
-        width: 40px;
-        height: 60px;
-        background-color: transparent;
-        background-position: center;
-        background-size: contain;
-        background-repeat: no-repeat;
-    }
-
-    /* 隐藏原先的伪元素（改用图片） */
-    .player::after, .player::before {
-        display: none;
-    }
-
-    /* 子弹 */
-    .bullet {
-        position: absolute;
-        width: 10px;
-        height: 4px;
-        background: yellow;
-        border-radius: 2px;
-    }
-
-    /* 落石 */
-    .rock {
-        position: absolute;
-        width: 30px;
-        height: 30px;
-        background: gray;
-        border-radius: 5px;
-    }
-    
-    /* 平台 */
-    .platform {
-        position: absolute;
-        height: 12px;
-        background: #34d399;
-        border-radius: 6px;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-    }
-
-    #info {
-        position: absolute;
-        top: 10px;
-        width: 100%;
-        font-size: 20px;
-    }
-
-    #winner {
-        display: none;
-        font-size: 40px;
-        margin-top: 20vh;
-    }
-
-    #restart {
-        display: none;
-        padding: 12px 25px;
-        background: #60a5fa;
-        border-radius: 6px;
-        cursor: pointer;
-        border: none;
-        font-size: 20px;
-        color: black;
-    }
-</style>
+    /* 更真实 BSOD 样式 */
+    #bsod{position:fixed;left:0;top:0;width:100%;height:100%;background:#0078d7;color:#fff;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;font-family:Segoe UI,Segoe UI Emoji,Arial,sans-serif;font-size:18px;visibility:hidden;z-index:20;padding-left:8vw;box-sizing:border-box}
+    #bsod .face{font-size:96px;margin-bottom:8px}
+    #bsod .main-title{font-size:28px;font-weight:600;margin-bottom:12px}
+    #bsod .msg{max-width:60ch;line-height:1.6;color:rgba(255,255,255,0.95);margin-bottom:12px}
+    #bsod .collect{margin-top:6px;font-size:16px;opacity:0.95}
+    #bsod .stopcode{margin-top:18px;font-size:15px;color:rgba(255,255,255,0.95)}
+    #bsod .hint{margin-top:20px;font-size:14px;color:rgba(255,255,255,0.9)}
+    /* 小标签显示被捉弄了（在屏幕角落，避免破坏真实感） */
+    #bsod .prank-tag{position:fixed;right:12px;bottom:18px;background:#fff;color:#000;padding:6px 10px;border-radius:6px;font-weight:700;font-size:16px}
+    /* 轻微闪烁故障效果 */
+    .bsod-flicker{animation:flicker 360ms linear 3}
+    @keyframes flicker{0%{opacity:1}50%{opacity:0.85}100%{opacity:1}}
+    @media (max-width:600px){#bsod{padding-left:6vw}}
+    /* 小提示 */
+    .foot{position:fixed;left:12px;bottom:12px;font-size:12px;color:rgba(180,255,200,0.5);z-index:3}
+  </style>
 </head>
 <body>
+  <div class="matrix"><canvas id="rain"></canvas></div>
+  <div id="terminal" role="log" aria-live="polite"></div>
+  <div class="scanner" aria-hidden="true"></div>
 
-<div id="game">
-    <div id="info">
-        <b>操作说明：</b><br>
-        玩家1： A 左 | D 右 | W 跳 | F 发射子弹 | G 冲刺技能<br>
-        玩家2： ← 左 | → 右 | ↑ 跳 | / 发射子弹 | K 冲刺技能
-    </div>
+  <!-- 真实感更强的蓝屏 -->
+  <div id="bsod" role="alertdialog" aria-hidden="true">
+    <div class="face">:（</div>
+    <div class="main-title">您的电脑遇到问题，需要重新启动。</div>
+    <div class="msg">我们正在收集有关错误的信息。完成后，我们会自动重新启动您的电脑。完成收集的进度如下。</div>
+    <div class="collect">收集信息: <span id="collect-percent">0%</span></div>
+    <div class="stopcode">停止代码: <strong>0xDEADBEEF (KERNEL_FAKE_FAILURE)</strong></div>
+    <div class="hint">有关更多信息，请访问：`https://www.windows.com/stopcode` 并搜索停止代码。</div>
+    <div class="prank-tag">被捉弄了</div>
+  </div>
 
-    <div id="winner"></div>
-    <button id="restart" onclick="restart()">重新开始</button>
-</div>
+  <div class="foot">模拟演示 — 仅用于恶作剧</div>
 
-<script>
-const game = document.getElementById("game");
-const winnerText = document.getElementById("winner");
-const restartBtn = document.getElementById("restart");
-
-const PLAYER_W = 48;
-const PLAYER_H = 72;
-
-let players = [
-    { x: 200, y: 500, vx: 0, vy: 0, img: "https://www.keaitupian.cn/cjpic/frombd/1/253/728328963/1751682274.jpg", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } },
-    { x: 900, y: 500, vx: 0, vy: 0, img: "https://c-ssl.dtstatic.com/uploads/blog/202303/25/20230325215809_01644.thumb.400_0.jpeg", alive: true, skillTimer: 0, skillCooldown: 180, isDashing: false, dashTimer: 0, dashVel: 0, jumpCount: 0, lastTap: { left: 0, right: 0 } }
-];
-
-let keys = {};
-let bullets = [];
-let rocks = [];
-let gravity = 0.4;
-let ground = window.innerHeight - 80;
-
-/* 创建玩家元素 */
-players.forEach((p, i) => {
-    p.el = document.createElement("div");
-    p.el.className = "player";
-    // 先设置尺寸与样式
-    p.el.style.width = PLAYER_W + "px";
-    p.el.style.height = PLAYER_H + "px";
-    p.el.style.borderRadius = "6px";
-    p.el.style.boxShadow = "0 2px 6px rgba(0,0,0,0.4)";
-    // 如果有图片，尝试预加载以便处理 onerror 回退
-    if (p.img) {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-            p.el.style.backgroundImage = `url(${p.img})`;
-            p.el.style.backgroundSize = "cover";
-            p.el.style.backgroundRepeat = "no-repeat";
-            p.el.style.backgroundPosition = "center";
-        };
-        img.onerror = () => {
-            // 回退样式
-            p.el.style.background = "#999";
-            p.el.innerText = i === 0 ? "P1" : "P2";
-            p.el.style.color = "#111";
-            p.el.style.display = "flex";
-            p.el.style.alignItems = "center";
-            p.el.style.justifyContent = "center";
-            p.el.style.fontWeight = "bold";
-        };
-        img.src = p.img;
-    } else {
-        p.el.style.background = p.color || "#0ea5a0";
-    }
-    game.appendChild(p.el);
-});
-
-/* 键盘监听 */
-// 处理按键与双击检测
-document.addEventListener("keydown", e => {
-    if (!keys[e.key]) handleTap(e.key);
-    keys[e.key] = true;
-});
-document.addEventListener("keyup", e => keys[e.key] = false);
-
-function handleTap(key) {
-    const now = performance.now();
-    // 玩家1: a / d / s ； 玩家2: ArrowLeft / ArrowRight / ArrowDown
-    // 双击方向触发冲刺
-    // 玩家1 左
-    if (key === "a") {
-        const p = players[0];
-        if (now - p.lastTap.left < 300 && p.skillTimer <= 0) {
-            // 触发冲刺向左
-            p.isDashing = true;
-            p.dashTimer = 12;
-            p.skillTimer = p.skillCooldown;
-            p.dashVel = -12;
-            p.vx = p.dashVel;
-            p.lastTap.left = 0;
-        } else {
-            p.lastTap.left = now;
+  <script>
+    /* ===== matrix rain (保留) ===== */
+    (function(){
+      const canvas = document.getElementById('rain');
+      const ctx = canvas.getContext('2d');
+      function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
+      addEventListener('resize',resize);
+      resize();
+      const cols = Math.max(10,Math.floor(canvas.width/14));
+      const ypos = Array(cols).fill(0);
+      function tick(){
+        ctx.fillStyle='rgba(0,0,0,0.15)';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle='#00ff99';
+        ctx.font='14px monospace';
+        for(let i=0;i<ypos.length;i++){
+          const text = String.fromCharCode(33 + Math.random()*94 | 0);
+          ctx.fillText(text,i*14,ypos[i]*14);
+          if(ypos[i]*14>canvas.height && Math.random()>0.975) ypos[i]=0;
+          ypos[i]++;
         }
-    }
-    // 玩家1 右
-    if (key === "d") {
-        const p = players[0];
-        if (now - p.lastTap.right < 300 && p.skillTimer <= 0) {
-            p.isDashing = true;
-            p.dashTimer = 12;
-            p.skillTimer = p.skillCooldown;
-            p.dashVel = 12;
-            p.vx = p.dashVel;
-            p.lastTap.right = 0;
-        } else {
-            p.lastTap.right = now;
-        }
-    }
-    // 玩家1 下键发射子弹
-    if (key === "s") {
-        shoot(0);
+        requestAnimationFrame(tick);
+      }
+      tick();
+    })();
+
+    /* ===== terminal content & typing (保留) ===== */
+    const terminal = document.getElementById('terminal');
+    const bsod = document.getElementById('bsod');
+    const collectEl = document.getElementById('collect-percent');
+
+    const scriptLines = [
+      {cmd:'sudo systemctl scan --full',out:'启动深度安全扫描...'},
+      {cmd:'nmap -A 127.0.0.1',out:'发现 7 个开放端口，尝试漏洞利用...'},
+      {cmd:'python3 exploit.py --target all',out:'利用已加载模块: kernel-exploit, mem-scrambler'},
+      {cmd:'injector --stealth',out:'注入成功，提升权限至 SYSTEM'},
+      {cmd:'encryptor --fast --all',out:'开始加密文件系统...  (请勿断电)'},
+      {cmd:'wiper --confirm',out:'发现非预期异常，正在回滚... 失败'},
+      {cmd:'reboot -f',out:'系统内核错误: 未处理的例外'}
+    ];
+
+    function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+    async function typeLine(container, text, speed=28){
+      const span = document.createElement('span');
+      span.className='typed';
+      container.appendChild(span);
+      for(let i=0;i<text.length;i++){
+        span.textContent += text[i];
+        container.scrollTop = container.scrollHeight;
+        await sleep(speed + Math.random()*20 - 10);
+      }
+      return span;
     }
 
-    // 玩家2 左
-    if (key === "ArrowLeft") {
-        const p = players[1];
-        if (now - p.lastTap.left < 300 && p.skillTimer <= 0) {
-            p.isDashing = true;
-            p.dashTimer = 12;
-            p.skillTimer = p.skillCooldown;
-            p.dashVel = -12;
-            p.vx = p.dashVel;
-            p.lastTap.left = 0;
-        } else {
-            p.lastTap.left = now;
-        }
-    }
-    // 玩家2 右
-    if (key === "ArrowRight") {
-        const p = players[1];
-        if (now - p.lastTap.right < 300 && p.skillTimer <= 0) {
-            p.isDashing = true;
-            p.dashTimer = 12;
-            p.skillTimer = p.skillCooldown;
-            p.dashVel = 12;
-            p.vx = p.dashVel;
-            p.lastTap.right = 0;
-        } else {
-            p.lastTap.right = now;
-        }
-    }
-    // 玩家2 下键发射子弹
-    if (key === "ArrowDown") {
-        shoot(1);
-    }
-}
+    async function showTerminal(){
+      for(let i=0;i<scriptLines.length;i++){
+        const wrap = document.createElement('div');
+        wrap.className='cmd-line';
+        const prompt = document.createElement('span');
+        prompt.style.color='#aaffd1';
+        prompt.textContent = '[root@system ~]# ';
+        wrap.appendChild(prompt);
+        terminal.appendChild(wrap);
+        const typed = await typeLine(wrap, scriptLines[i].cmd, 30);
+        const cursor = document.createElement('span');
+        cursor.className='cursor';
+        wrap.appendChild(cursor);
+        await sleep(300 + Math.random()*400);
+        cursor.remove();
+        const out = document.createElement('div');
+        out.style.color='#cfeee0';
+        out.style.marginLeft='6px';
+        out.textContent = scriptLines[i].out;
+        terminal.appendChild(out);
+        terminal.scrollTop = terminal.scrollHeight;
+        await sleep(350 + i*80);
+      }
 
-/* 发射子弹 */
-function shoot(i) {
-    if (!players[i].alive) return;
+      const progWrap = document.createElement('div');
+      progWrap.className='progress';
+      const bar = document.createElement('span');
+      progWrap.appendChild(bar);
+      terminal.appendChild(progWrap);
+      terminal.scrollTop = terminal.scrollHeight;
 
-    let dir = i === 0 ?
-        (keys["d"] ? 1 : keys["a"] ? -1 : 1) :
-        (keys["ArrowRight"] ? 1 : keys["ArrowLeft"] ? -1 : -1);
-
-    let b = {
-        x: players[i].x + PLAYER_W / 2,
-        y: players[i].y + PLAYER_H / 2,
-        vx: dir * 8,
-        owner: i
-    };
-    b.el = document.createElement("div");
-    b.el.className = "bullet";
-    game.appendChild(b.el);
-    bullets.push(b);
-}
-
-/* 落石生成 */
-function spawnRock() {
-    let r = {
-        x: Math.random() * window.innerWidth,
-        y: -30,
-        vy: Math.random() * 2 + 3
-    };
-    r.el = document.createElement("div");
-    r.el.className = "rock";
-    r.el.style.left = r.x + "px";
-    game.appendChild(r.el);
-    rocks.push(r);
-
-    setTimeout(spawnRock, 1000 + Math.random() * 1000);
-}
-spawnRock();
-
-/* 平台系统 */
-let platforms = [];
-function createPlatform(x, y, width, opts = {}) {
-    let plat = { x, y, width };
-    plat.type = opts.type || "static"; // static | moving | disappear
-    plat.baseY = y;
-    plat.amplitude = opts.amplitude || 0;
-    plat.speed = opts.speed || 0;
-    plat.phase = opts.phase || 0;
-    plat.lifespan = opts.lifespan || 0; // frames for disappear type
-    plat.el = document.createElement("div");
-    plat.el.className = "platform";
-    plat.el.style.left = plat.x + "px";
-    plat.el.style.top = plat.y + "px";
-    plat.el.style.width = plat.width + "px";
-    game.appendChild(plat.el);
-    platforms.push(plat);
-    return plat;
-}
-
-ground = window.innerHeight - 80;
-// 一些示例平台
-createPlatform(300, ground - 150, 160);
-createPlatform(700, ground - 250, 120);
-createPlatform(Math.max(100, window.innerWidth / 2 - 60), ground - 350, 140);
-// frame counter for animations
-let frameCount = 0;
-
-// 动态生成平台（最多 7 个）
-function spawnDynamicPlatform() {
-    if (platforms.length >= 7) return;
-    const w = 80 + Math.random() * 160;
-    const x = Math.random() * (window.innerWidth - w - 40) + 20;
-    const baseY = 120 + Math.random() * (ground - 220);
-    const r = Math.random();
-    if (r < 0.35) {
-        // moving
-        createPlatform(x, baseY, w, {
-            type: "moving",
-            amplitude: 30 + Math.random() * 80,
-            speed: 0.004 + Math.random() * 0.02,
-            phase: Math.random() * Math.PI * 2
-        });
-    } else if (r < 0.7) {
-        // disappearing
-        createPlatform(x, baseY, w, {
-            type: "disappear",
-            lifespan: 300 + Math.floor(Math.random() * 600)
-        });
-    } else {
-        // static
-        createPlatform(x, baseY, w, { type: "static" });
-    }
-}
-
-// 周期生成平台
-setInterval(spawnDynamicPlatform, 1200);
-
-window.addEventListener("resize", () => {
-    ground = window.innerHeight - 80;
-});
-
-/* 主循环 */
-function loop() {
-    players.forEach((p, i) => {
-        if (!p.alive) return;
-
-        // 控制
-        if (i === 0) { // 玩家1: A D W F
-            if (keys["a"]) p.vx = -4;
-            else if (keys["d"]) p.vx = 4;
-            else p.vx = 0;
-            // 跳跃（支持二段跳）：按下触发一次，释放后可再次触发
-            if (keys["w"] && p.jumpCount < 2) { p.vy = -10; p.jumpCount++; keys["w"] = false; }
-            if (keys["f"]) { keys["f"] = false; shoot(0); }
-            // 技能：G 冲刺
-            if (keys["g"] && p.skillTimer <= 0) {
-                keys["g"] = false;
-                p.isDashing = true;
-                p.dashTimer = 12;
-                p.skillTimer = p.skillCooldown;
-                let dir = keys["d"] ? 1 : keys["a"] ? -1 : (p.vx >= 0 ? 1 : -1);
-                p.dashVel = dir * 12;
-                p.vx = p.dashVel;
-            }
-        } else { // 玩家2: ← → ↑ /
-            if (keys["ArrowLeft"]) p.vx = -4;
-            else if (keys["ArrowRight"]) p.vx = 4;
-            else p.vx = 0;
-            if (keys["ArrowUp"] && p.jumpCount < 2) { p.vy = -10; p.jumpCount++; keys["ArrowUp"] = false; }
-            if (keys["/"]) { keys["/"] = false; shoot(1); }
-            // 技能：K 冲刺
-            if (keys["k"] && p.skillTimer <= 0) {
-                keys["k"] = false;
-                p.isDashing = true;
-                p.dashTimer = 12;
-                p.skillTimer = p.skillCooldown;
-                let dir = keys["ArrowRight"] ? 1 : keys["ArrowLeft"] ? -1 : (p.vx >= 0 ? 1 : -1);
-                p.dashVel = dir * 12;
-                p.vx = p.dashVel;
-            }
-        }
-
-        // 物理移动
-        p.vy += gravity;
-        p.y += p.vy;
-        // 冲刺期间保持冲刺速度
-        if (p.isDashing) {
-            p.dashTimer--;
-            p.vx = p.dashVel;
-            if (p.dashTimer <= 0) {
-                p.isDashing = false;
-                p.dashVel = 0;
-            }
-        }
-        p.x += p.vx;
-
-        // 技能冷却计时
-        if (p.skillTimer > 0) p.skillTimer--;
-
-        // 平台碰撞检测（从上方落下时）
-        for (let pi = platforms.length - 1; pi >= 0; pi--) {
-            const plat = platforms[pi];
-            if (p.vy >= 0 &&
-                p.x + PLAYER_W > plat.x &&
-                p.x < plat.x + plat.width &&
-                p.y + PLAYER_H >= plat.y &&
-                p.y + PLAYER_H <= plat.y + p.vy + 10) {
-                p.y = plat.y - PLAYER_H;
-                p.vy = 0;
-                // 着地重置二段跳
-                p.jumpCount = 0;
-            }
-        }
-
-        if (p.y > ground) { p.y = ground; p.vy = 0; p.jumpCount = 0; }
-        if (p.x < 0) p.x = 0;
-        if (p.x > window.innerWidth - PLAYER_W) p.x = window.innerWidth - PLAYER_W;
-
-        p.el.style.left = p.x + "px";
-        p.el.style.top = p.y + "px";
-    });
-
-    /* 子弹更新 */
-    bullets.forEach((b, idx) => {
-        b.x += b.vx;
-        b.el.style.left = b.x + "px";
-        b.el.style.top = b.y + "px";
-
-        // 飞出屏幕
-        if (b.x < 0 || b.x > window.innerWidth) {
-            b.el.remove();
-            bullets.splice(idx, 1);
-        }
-
-        // 检测击中
-        players.forEach((p, i) => {
-            if (!p.alive || b.owner === i) return;
-            const px = p.x + PLAYER_W / 2;
-            const py = p.y + PLAYER_H / 2;
-            if (Math.abs(b.x - px) < PLAYER_W && Math.abs(b.y - py) < PLAYER_H / 2 + 10) {
-                die(i);
-            }
-        });
-        // 子弹击碎落石检测
-        for (let ri = rocks.length - 1; ri >= 0; ri--) {
-            const r = rocks[ri];
-            // 简单矩形/距离检测
-            const rx = r.x + 15; // rock width ~30
-            const ry = r.y + 15;
-            const distX = Math.abs(b.x - rx);
-            const distY = Math.abs(b.y - ry);
-            if (distX < 24 && distY < 24) {
-                // 移除落石与子弹
-                if (r.el) r.el.remove();
-                rocks.splice(ri, 1);
-                if (b.el) b.el.remove();
-                bullets.splice(idx, 1);
-                break;
-            }
-        }
-    });
-
-    /* 平台更新：移动 / 消失 / 重绘 */
-    for (let i = platforms.length - 1; i >= 0; i--) {
-        const plat = platforms[i];
-        if (plat.type === "moving") {
-            plat.y = plat.baseY + Math.sin(frameCount * plat.speed + plat.phase) * plat.amplitude;
-            plat.el.style.top = plat.y + "px";
-        } else {
-            // 静态 or disappear use baseY unless lifespan causes blink
-            plat.el.style.top = plat.y + "px";
-        }
-
-        if (plat.type === "disappear") {
-            plat.lifespan--;
-            // 快要消失时开始闪烁
-            if (plat.lifespan < 60) {
-                plat.el.style.opacity = (Math.floor(plat.lifespan / 6) % 2) ? "0.3" : "1";
-            }
-            if (plat.lifespan <= 0) {
-                plat.el.remove();
-                platforms.splice(i, 1);
-            }
-        }
+      for(let p=0;p<=100;p+=1){
+        bar.style.width = p + '%';
+        await sleep(24 - Math.min(12,Math.floor(p/10)));
+        if(p===86){await glitchSound();}
+      }
+      const fail = document.createElement('div');
+      fail.style.color='#ff9b9b';
+      fail.textContent = '致命错误: 内核保护触发。准备重启...';
+      terminal.appendChild(fail);
+      terminal.scrollTop = terminal.scrollHeight;
+      await sleep(900);
+      showBSOD();
     }
 
-    /* 落石更新 */
-    rocks.forEach((r, idx) => {
-        r.y += r.vy;
-        r.el.style.top = r.y + "px";
+    /* ===== 声音 ===== */
+    async function glitchSound(){
+      try{
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const now = ctx.currentTime;
+        const o1 = ctx.createOscillator(), o2 = ctx.createOscillator();
+        const g = ctx.createGain();
+        o1.type='square'; o1.frequency.setValueAtTime(360, now);
+        o2.type='sawtooth'; o2.frequency.setValueAtTime(420, now);
+        g.gain.setValueAtTime(0.02, now);
+        o1.connect(g); o2.connect(g); g.connect(ctx.destination);
+        o1.start(now); o2.start(now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+        setTimeout(()=>{o1.stop();o2.stop(); ctx.close();},180);
+      }catch(e){}
+    }
 
-        // 砸中玩家
-        players.forEach((p, i) => {
-            if (!p.alive) return;
-            if (Math.abs(r.x - p.x) < 20 && Math.abs(r.y - p.y) < 50) {
-                die(i);
-            }
-        });
+    /* ===== 更真实的蓝屏显示逻辑 ===== */
+    function showBSOD(){
+      // 隐藏其他视觉元素
+      document.querySelector('.matrix').style.display = 'none';
+      document.getElementById('terminal').style.display = 'none';
+      document.querySelector('.scanner').style.display = 'none';
 
-        if (r.y > window.innerHeight) {
-            r.el.remove();
-            rocks.splice(idx, 1);
+      bsod.style.visibility='visible';
+      bsod.classList.add('bsod-flicker');
+      bsod.setAttribute('aria-hidden','false');
+      document.body.style.overflow='hidden';
+
+      // 模拟收集信息进度
+      let pct = 0;
+      collectEl.textContent = '0%';
+      const iv = setInterval(()=>{
+        pct += Math.floor(1 + Math.random()*6);
+        if(pct>=100) pct=100;
+        collectEl.textContent = pct + '%';
+        if(pct >= 100){
+          clearInterval(iv);
+          // 完成后短暂停顿，显示“被捉弄了”标签（已存在）并停止闪烁
+          setTimeout(()=>{ bsod.classList.remove('bsod-flicker'); }, 600);
         }
-    });
+      }, 120 + Math.random()*80);
 
-    // 更新顶部信息（技能冷却显示）
-    let infoHtml = `<b>操作说明：</b><br>
-        玩家1： A 左（双击冲刺） | D 右（双击冲刺） | W 跳（双段） | S 向下冲刺 | F 发射子弹（冷却：${Math.max(0, Math.ceil(players[0].skillTimer/60))}s）<br>
-        玩家2： ← 左（双击冲刺） | → 右（双击冲刺） | ↑ 跳（双段） | ↓ 向下冲刺 | / 发射子弹（冷却：${Math.max(0, Math.ceil(players[1].skillTimer/60))}s）`;
-    document.getElementById("info").innerHTML = infoHtml;
-    frameCount++;
-    requestAnimationFrame(loop);
-}
-loop();
+      try{glitchSound();}catch(e){}
+    }
 
-/* 玩家死亡 */
-function die(i) {
-    if (!players[i].alive) return;
-    players[i].alive = false;
-    players[i].el.style.opacity = "0.2";
+    // 阻止常见关闭快捷键（体验用）
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape' || (e.ctrlKey && (e.key.toLowerCase()==='w' || e.key.toLowerCase()==='r'))){
+        e.preventDefault(); e.stopPropagation();
+      }
+      // 蓝屏显示时，按任意键重载（模拟重启）
+      if(bsod.style.visibility==='visible'){ location.reload(); }
+    },true);
 
-    let winner = i === 0 ? "玩家2 获胜！" : "玩家1 获胜！";
-    winnerText.innerHTML = winner;
-    winnerText.style.display = "block";
-    restartBtn.style.display = "inline-block";
-}
-
-/* 重新开始 */
-function restart() {
-    window.location.reload();
-}
-</script>
-
+    showTerminal();
+  </script>
 </body>
 </html>
+
